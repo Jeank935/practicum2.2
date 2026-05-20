@@ -37,9 +37,8 @@ def ejecutar_pipeline():
     
     fact_matricula = construir_fact_matricula(df_clean, dim_periodo, dim_ubicacion, dim_perfil)
     
-    # 3. CARGA (LOAD)
+    # 3. CARGA (
     print("\n--- FASE DE CARGA (POSTGRESQL) ---")
-    # Creamos la conexión a PostgreSQL (usamos psycopg v3 como driver)
     cadena_conexion = f'postgresql+psycopg://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
     engine = create_engine(cadena_conexion)
     
