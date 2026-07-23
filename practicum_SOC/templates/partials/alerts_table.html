@@ -1,0 +1,21 @@
+{% set rows = alerts if alerts is defined else recent_alerts %}
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Severidad</th><th>Regla</th><th>Usuario</th><th>Eventos</th><th>Estado</th><th>Entrega</th><th>Inicio</th></tr></thead>
+    <tbody>
+    {% for alert in rows %}
+      <tr>
+        <td><span class="severity-pill {{ alert.severity }}">{{ alert.severity }}</span></td>
+        <td><a class="table-link" href="/alerts/{{ alert.alert_id }}">{{ alert.rule_name }}</a><small>{{ alert.rule_id }}</small></td>
+        <td><code>{{ alert.user_key or 'múltiples' }}</code></td>
+        <td>{{ alert.event_count }}</td>
+        <td><span class="status-pill">{{ alert.investigation_status }}</span></td>
+        <td>{{ alert.delivery_channel }} · {{ alert.delivery_status }}</td>
+        <td>{{ alert.first_seen_local[:16].replace('T', ' ') }}</td>
+      </tr>
+    {% else %}
+      <tr><td class="empty-state" colspan="7">No hay alertas para los filtros seleccionados.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>

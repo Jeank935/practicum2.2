@@ -1,0 +1,10 @@
+{
+  "minimum_year": 2020,
+  "rejection_flags": [
+    "INVALID_EVENT_TIME",
+    "UNKNOWN_EVENT_NAME",
+    "MISSING_USER_ID",
+    "MISSING_CLIENT_IP",
+    "INVALID_CLIENT_IP"
+  ]
+}

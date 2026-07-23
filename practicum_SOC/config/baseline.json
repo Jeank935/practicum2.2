@@ -1,0 +1,10 @@
+{
+  "timezone": "America/Guayaquil",
+  "minimum_events_per_day": 1000,
+  "minimum_active_hours_per_day": 12,
+  "minimum_user_history_events": 20,
+  "training_start_local": "2026-03-14",
+  "training_end_local": "2026-03-20",
+  "evaluation_start_local": "2026-03-21",
+  "update_frequency": "monthly_after_data_quality_review"
+}

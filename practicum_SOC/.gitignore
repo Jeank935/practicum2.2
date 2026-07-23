@@ -1,0 +1,25 @@
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+.env
+.secrets/
+
+# Los CSV fuente contienen datos operativos reales.
+data/*.csv
+
+# Los datos derivados pueden contener información operativa y no se versionan.
+analysis/normalized*.csv
+analysis/inconsistent*.csv
+analysis/rejected*.csv
+analysis/normalization*_stats.json
+analysis/data_profile.json
+analysis/baseline/
+analysis/alerts/
+analysis/state/
+analysis/report/
+*.db
+*.sqlite
+*.sqlite3
+.ruff_cache/
+.pytest_cache/

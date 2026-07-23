@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ alert.alert_id }} · Bandeja SOC{% endblock %}
+{% block content %}
+<a class="back-link" href="/alerts">Volver a alertas</a>
+<section class="detail-header">
+  <div><p class="eyebrow">{{ alert.rule_id }}</p><h1>{{ alert.rule_name }}</h1><p>{{ alert.description }}</p></div>
+  <div class="risk-score"><span>Riesgo</span><strong>{{ alert.risk_score }}</strong><small>/ 100</small></div>
+</section>
+<section class="detail-grid">
+  <article class="panel">
+    <div class="panel-heading"><h2>Evidencia</h2><span class="severity-pill {{ alert.severity }}">{{ alert.severity }}</span></div>
+    <dl class="metrics-list">
+      <div><dt>Usuario</dt><dd><code>{{ alert.user_key or 'múltiples' }}</code></dd></div>
+      <div><dt>IP cliente</dt><dd><code>{{ alert.client_ip_key or 'múltiples' }}</code></dd></div>
+      <div><dt>Eventos relacionados</dt><dd>{{ alert.event_count }}</dd></div>
+      <div><dt>Periodo</dt><dd>{{ alert.first_seen_local }} — {{ alert.last_seen_local }}</dd></div>
+      <div><dt>Tipos</dt><dd>{{ alert.event_types }}</dd></div>
+      <div><dt>Entrega</dt><dd>{{ alert.delivery_channel }} · {{ alert.delivery_status }}</dd></div>
+    </dl>
+    <div class="recommendation"><strong>Recomendación inicial</strong><p>{{ alert.recommendation }}</p></div>
+  </article>
+  <article class="panel">
+    <div class="panel-heading"><h2>Estado de investigación</h2><span class="status-pill" id="current-status">{{ alert.investigation_status }}</span></div>
+    <label class="full-field">Nota del analista<textarea id="status-note" rows="3" placeholder="Contexto de la revisión"></textarea></label>
+    <div class="status-actions" data-alert-id="{{ alert.alert_id }}">
+      {% for value in ['new','notified','investigating','resolved','false_positive'] %}<button class="secondary-button" data-status="{{ value }}">{{ value }}</button>{% endfor %}
+    </div>
+    <h3>Contribución al riesgo</h3>
+    <div class="risk-factors">{% for factor in alert.risk_factors %}<div><span>{{ factor.factor }}</span><strong>+{{ factor.points }}</strong></div>{% endfor %}</div>
+  </article>
+</section>
+<section class="dashboard-grid">
+  <article class="panel"><div class="panel-heading"><h2>Historial de estado</h2></div><ol class="timeline">{% for item in alert.history %}<li><strong>{{ item.new_status }}</strong><span>{{ item.changed_at_utc }}</span><p>{{ item.note or '' }}</p></li>{% endfor %}</ol></article>
+  <article class="panel"><div class="panel-heading"><h2>Intentos de entrega</h2></div><ol class="timeline">{% for item in alert.deliveries %}<li><strong>{{ item.channel }} · {{ item.outcome }}</strong><span>{{ item.attempted_at_utc }}</span></li>{% else %}<li>Sin entregas registradas.</li>{% endfor %}</ol></article>
+</section>
+<div id="status-message" class="toast" role="status" aria-live="polite"></div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', path='alert-detail.js') }}"></script>{% endblock %}

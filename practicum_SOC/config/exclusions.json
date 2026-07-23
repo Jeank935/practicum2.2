@@ -1,0 +1,6 @@
+{
+  "authorized_user_keys": [],
+  "authorized_client_ip_keys": [],
+  "authorized_relying_parties": [],
+  "configuration_status": "empty_until_formally_authorized"
+}

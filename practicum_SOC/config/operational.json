@@ -1,0 +1,17 @@
+{
+  "interval_seconds": 60,
+  "batch_size": 500,
+  "detection_lookback_minutes": 720,
+  "baseline_dir": "analysis/baseline",
+  "exclusions_file": "config/exclusions.json",
+  "notification_mode": "soc_inbox",
+  "notification_policy": {
+    "immediate_severities": [
+      "high",
+      "critical"
+    ],
+    "suppressed_rules": [],
+    "maximum_notifications_per_run": 20,
+    "maximum_delivery_attempts": 3
+  }
+}

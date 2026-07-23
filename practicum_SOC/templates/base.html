@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Bandeja SOC ADFS{% endblock %}</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', path='utpl3.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', path='styles.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="UTPL — Bandeja SOC ADFS">
+      <img
+        class="brand-logo"
+        src="{{ url_for('static', path='utpl3.png') }}"
+        alt="UTPL, La Universidad Católica de Loja"
+      >
+      <span class="brand-context">
+        <strong>ADFS Monitor</strong>
+        <small>DGTITD · Operaciones SOC</small>
+      </span>
+    </a>
+    <nav aria-label="Navegación principal">
+      <a href="/">Resumen</a>
+      <a href="/alerts">Alertas</a>
+      <a href="/reports/latest">Reporte</a>
+      <a href="/health">Salud</a>
+    </nav>
+  </header>
+  <main class="page-shell">
+    {% block content %}{% endblock %}
+  </main>
+  <footer>UTPL · DGTITD — Motor demostrativo de apoyo SOC. Toda señal requiere revisión humana.</footer>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Resumen · Bandeja SOC{% endblock %}
+{% block content %}
+<section class="hero">
+  <div>
+    <p class="eyebrow">MONITOREO DE AUTENTICACIONES</p>
+    <h1>Bandeja SOC ADFS</h1>
+    <p>Señales pseudonimizadas para análisis y trazabilidad operativa.</p>
+  </div>
+  <div class="hero-actions">
+    <span class="source-badge"><i></i> Fuente activa: {{ source_label }}</span>
+    <button id="run-demo" class="primary-button">Ejecutar demo</button>
+  </div>
+</section>
+
+<section class="kpi-grid" aria-label="Indicadores principales">
+  <article class="kpi"><span>Eventos procesados</span><strong>{{ "{:,}".format(normalization.get('input_rows', 0)) }}</strong><small>CSV histórico</small></article>
+  <article class="kpi"><span>Eventos válidos</span><strong>{{ "{:,}".format(normalization.get('valid_rows', 0)) }}</strong><small>Normalizados</small></article>
+  <article class="kpi warning"><span>Rechazados</span><strong>{{ "{:,}".format(normalization.get('rejected_rows', 0)) }}</strong><small>Con motivo registrado</small></article>
+  <article class="kpi accent"><span>Alertas persistidas</span><strong>{{ alert_counts.total }}</strong><small>Periodo de evaluación</small></article>
+</section>
+
+<section class="dashboard-grid">
+  <article class="panel severity-panel">
+    <div class="panel-heading"><div><p class="eyebrow">PRIORIZACIÓN</p><h2>Alertas por severidad</h2></div></div>
+    <div class="severity-list">
+      {% for severity, label in [('critical','Crítica'),('high','Alta'),('medium','Media'),('low','Baja')] %}
+      <div><span class="severity-dot {{ severity }}"></span><span>{{ label }}</span><strong>{{ alert_counts.by_severity.get(severity, 0) }}</strong></div>
+      {% endfor %}
+    </div>
+  </article>
+  <article class="panel baseline-panel">
+    <div class="panel-heading"><div><p class="eyebrow">LÍNEA BASE</p><h2>Entrenamiento y evaluación</h2></div></div>
+    <dl class="metrics-list">
+      <div><dt>Entrenamiento</dt><dd>{{ baseline.get('training_period', {}).get('start_local', 'N/D') }} — {{ baseline.get('training_period', {}).get('end_local', 'N/D') }}</dd></div>
+      <div><dt>Eventos de entrenamiento</dt><dd>{{ "{:,}".format(baseline.get('baseline_event_count', 0)) }}</dd></div>
+      <div><dt>Eventos de evaluación</dt><dd>{{ "{:,}".format(baseline.get('evaluation_event_count', 0)) }}</dd></div>
+      <div><dt>Usuarios con historial suficiente</dt><dd>{{ "{:,}".format(baseline.get('users_with_sufficient_history', 0)) }}</dd></div>
+    </dl>
+  </article>
+</section>
+
+<section class="panel table-panel">
+  <div class="panel-heading"><div><p class="eyebrow">BANDEJA</p><h2>Alertas recientes</h2></div><a href="/alerts">Ver todas</a></div>
+  {% include "partials/alerts_table.html" %}
+</section>
+
+<section class="panel disabled-panel">
+  <div class="panel-heading"><div><p class="eyebrow">CONTROL DE ALCANCE</p><h2>Reglas desactivadas</h2></div></div>
+  <div class="disabled-grid">
+    {% for rule in disabled_rules %}
+    <article><code>{{ rule.key }}</code><p>{{ rule.reason }}</p></article>
+    {% endfor %}
+  </div>
+</section>
+
+<div id="demo-status" class="toast" role="status" aria-live="polite"></div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', path='dashboard.js') }}"></script>{% endblock %}
