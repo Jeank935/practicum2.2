@@ -344,6 +344,51 @@ class AlertStore:
             "by_rule": {row["rule_id"]: row["count"] for row in rule_rows},
         }
 
+    def operational_alert_summary(self, source_name: str) -> dict:
+        """Resume solo la cola de trabajo que necesita el analista SOC."""
+        totals = self.connection.execute(
+            """
+            SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN investigation_status IN ('new', 'notified') THEN 1 ELSE 0 END)
+                    AS pending_review,
+                SUM(CASE WHEN investigation_status = 'investigating' THEN 1 ELSE 0 END)
+                    AS investigating,
+                SUM(CASE WHEN investigation_status = 'resolved' THEN 1 ELSE 0 END)
+                    AS resolved,
+                SUM(CASE WHEN investigation_status = 'false_positive' THEN 1 ELSE 0 END)
+                    AS false_positive,
+                MAX(updated_at_utc) AS last_updated_at_utc
+            FROM alerts
+            WHERE source_name = ?
+            """,
+            (source_name,),
+        ).fetchone()
+        severity_rows = self.connection.execute(
+            """
+            SELECT severity, COUNT(*) AS count
+            FROM alerts
+            WHERE source_name = ?
+              AND investigation_status IN ('new', 'notified', 'investigating')
+            GROUP BY severity
+            """,
+            (source_name,),
+        ).fetchall()
+        summary = {
+            key: int(totals[key] or 0)
+            for key in (
+                "total",
+                "pending_review",
+                "investigating",
+                "resolved",
+                "false_positive",
+            )
+        }
+        summary["open_by_severity"] = {row["severity"]: int(row["count"]) for row in severity_rows}
+        summary["last_updated_at_utc"] = totals["last_updated_at_utc"] or "none"
+        summary["revision"] = f"{source_name}:{summary['total']}:{summary['last_updated_at_utc']}"
+        return summary
+
     def alert_history(self, alert_id: str) -> list[dict]:
         rows = self.connection.execute(
             """

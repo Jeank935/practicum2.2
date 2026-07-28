@@ -119,11 +119,11 @@ La configuración que debe abrirse durante la defensa es
 
 | Regla | Bloque de código | Umbral provisional |
 |---|---|---|
-| `AUTH_BRUTE_FORCE_USER` | `detect_brute_force` | 10 fallos del usuario en 10 minutos. |
-| `AUTH_PASSWORD_SPRAY_IP` | `detect_password_spray` | 10 fallos contra 10 usuarios desde una IP en 10 minutos. |
+| `AUTH_BRUTE_FORCE_USER` | `detect_brute_force` | 6 fallos del usuario en 10 minutos. |
+| `AUTH_PASSWORD_SPRAY_IP` | `detect_password_spray` | 6 fallos contra al menos 3 usuarios desde una IP en 10 minutos. |
 | `AUTH_SUCCESS_AFTER_FAILURES` | `detect_success_after_failures` | Un éxito después de 5 fallos en 10 minutos. |
-| `AUTH_ACCOUNT_LOCKOUT` | `detect_account_lockout` | Evento explícito de bloqueo. |
-| `AUTH_NEW_IP_FOR_USER` | `detect_new_ip` | IP no observada y usuario con al menos 20 eventos históricos. |
+| `AUTH_ACCOUNT_LOCKOUT` | `detect_account_lockout` | 2 bloqueos de la misma cuenta en 10 minutos. |
+| `AUTH_NEW_IP_FOR_USER` | `detect_new_ip` | 3 eventos desde una IP no observada y usuario con historial suficiente. |
 
 Bloques comunes que conviene mencionar:
 
@@ -132,6 +132,8 @@ Bloques comunes que conviene mencionar:
 - `make_alert`: garantiza el formato común y la evidencia mínima.
 - `evaluation_events`: excluye el periodo utilizado para entrenamiento.
 - `cooldown_ready`: evita repetir señales iguales dentro de la ventana.
+
+Las cuentas técnicas e IP autorizadas se registran mediante pseudónimos en `config/exclusions.json`. No se eliminan sus eventos: las reglas usan umbrales anómalos más altos y todavía generan un caso si el patrón supera esos límites.
 
 ### Reglas desactivadas
 
@@ -147,8 +149,8 @@ de la solución.
 
 ### Evidencia para mostrar
 
-- `analysis/alerts/alert_summary.json`: 43 alertas sobre el periodo de
-  evaluación; 29 altas y 14 medias.
+- `analysis/alerts/alert_summary.json`: conteo reproducible del periodo de
+  evaluación, distribuido por regla y severidad.
 - `analysis/alerts/alerts.csv`: detalle explicable de cada alerta.
 - `tests/test_detect_alerts.py`: activación de las cinco reglas y confirmación
   de que las reglas desactivadas no generan alertas.
@@ -185,7 +187,7 @@ de la solución.
 
 ### Evidencia para mostrar
 
-- `analysis/state/soc_alerts.db`: 43 alertas vigentes del demo, historial de
+- `analysis/state/soc_alerts.db`: eventos y casos persistidos, historial de
   estados, cooldown y checkpoint.
 - Abrir `http://127.0.0.1:8000`, entrar al detalle de una alerta y cambiarla a
   `investigating`, `resolved` o `false_positive`.
@@ -328,4 +330,3 @@ secuencia de validación será:
 6. repetir el ciclo y comprobar que no duplica eventos;
 7. probar el fallback controlado;
 8. solo después habilitar `-Mode loop`.
-

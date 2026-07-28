@@ -6,11 +6,11 @@ Umbrales, ventanas, cooldown y riesgo están centralizados en `config/detection_
 
 | ID | Condición inicial | Riesgo base | Revisión sugerida |
 |---|---|---:|---|
-| `AUTH_BRUTE_FORCE_USER` | 10 fallos del usuario en 10 min | 70 | Validar origen y actividad del responsable. |
-| `AUTH_PASSWORD_SPRAY_IP` | 10 fallos contra 10 usuarios desde una IP en 10 min | 75 | Descartar NAT, proxy o infraestructura compartida. |
-| `AUTH_SUCCESS_AFTER_FAILURES` | Éxito tras 5 fallos del usuario en 10 min | 85 | Priorizar origen y confirmar el acceso. |
-| `AUTH_ACCOUNT_LOCKOUT` | Bloqueo explícito de cuenta | 65 | Revisar intentos previos y dispositivo desactualizado. |
-| `AUTH_NEW_IP_FOR_USER` | IP ausente de la línea base de un usuario con 20 eventos o más | 50 | Validar red móvil, cambio de ISP o acceso legítimo. |
+| `AUTH_BRUTE_FORCE_USER` | 6 fallos del usuario en 10 min | 65 | Validar origen y actividad del responsable. |
+| `AUTH_PASSWORD_SPRAY_IP` | 6 fallos contra al menos 3 usuarios desde una IP en 10 min | 65 | Descartar NAT, proxy o infraestructura compartida. |
+| `AUTH_SUCCESS_AFTER_FAILURES` | Éxito tras 5 fallos del usuario en 10 min | 75 | Priorizar origen y confirmar el acceso. |
+| `AUTH_ACCOUNT_LOCKOUT` | 2 bloqueos de la misma cuenta en 10 min | 85 | Revisar intentos previos y dispositivo desactualizado. |
+| `AUTH_NEW_IP_FOR_USER` | 3 eventos desde una IP ausente de la línea base suficiente en 10 min | 40 | Validar red móvil, cambio de ISP o acceso legítimo. |
 
 Severidad por puntaje: baja 0–39, media 40–64, alta 65–84 y crítica 85–100. El exceso de volumen y el contexto agregan puntos visibles en `risk_factors`.
 
@@ -30,6 +30,10 @@ El detector no ejecuta estas reglas. En particular, no se generan alertas por ac
 - alertas deterministas y deduplicadas;
 - cooldown en memoria y persistente en SQLite;
 - límite de entrega por ciclo;
-- IP nueva solo con historial suficiente;
+- un fallo, un bloqueo o una IP nueva con un solo evento quedan en el histórico, pero no abren un caso;
+- IP nueva solo con historial suficiente y actividad repetida;
+- cuentas técnicas e IP autorizadas usan umbrales anómalos más altos definidos en `config/exclusions.json`;
 - evidencia y recomendación para revisión humana;
 - registro de falsos positivos y supresiones.
+
+Los umbrales elevados de las exclusiones no eliminan ni alteran eventos. Si una cuenta técnica o una IP autorizada supera su límite anómalo, el motor sí genera una alerta. Los pseudónimos autorizados deben acordarse con la Dirección antes de agregarlos al archivo de configuración.

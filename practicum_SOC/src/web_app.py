@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Literal
 
@@ -15,8 +16,11 @@ from dashboard_service import DashboardService
 
 ROOT = Path(__file__).resolve().parents[1]
 templates = Jinja2Templates(directory=ROOT / "templates")
+configured_state_db = Path(
+    os.environ.get("SOC_STATE_DB", str(ROOT / "analysis" / "state" / "soc_alerts.db"))
+)
 service = DashboardService(
-    state_db=ROOT / "analysis" / "state" / "soc_alerts.db",
+    state_db=configured_state_db,
     analysis_dir=ROOT / "analysis",
     detection_config=ROOT / "config" / "detection_rules.json",
     operational_config=ROOT / "config" / "operational.json",
@@ -82,6 +86,11 @@ def update_alert_status(alert_id: str, payload: StatusUpdate):
 @app.get("/health")
 def health():
     return service.health()
+
+
+@app.get("/api/dashboard-version")
+def dashboard_version():
+    return service.dashboard_version()
 
 
 @app.post("/demo/run")

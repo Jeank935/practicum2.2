@@ -46,27 +46,23 @@ def event_from_row(row: dict, timezone_name: str) -> Event | None:
     )
 
 
-def load_exclusions(path: Path) -> dict[str, set[str]]:
+def load_exclusions(path: Path) -> dict:
     from runtime_config import load_json
 
     if not path.is_file():
-        return {"user_keys": set(), "client_ip_keys": set(), "relying_parties": set()}
+        return {
+            "user_keys": set(),
+            "client_ip_keys": set(),
+            "relying_parties": set(),
+            "anomalous_thresholds": {},
+        }
     raw = load_json(path)
     return {
         "user_keys": set(raw.get("authorized_user_keys", [])),
         "client_ip_keys": set(raw.get("authorized_client_ip_keys", [])),
         "relying_parties": set(raw.get("authorized_relying_parties", [])),
+        "anomalous_thresholds": dict(raw.get("anomalous_thresholds", {})),
     }
-
-
-def exclusion_reason(event: Event, exclusions: dict[str, set[str]]) -> str:
-    if event.user_key and event.user_key in exclusions["user_keys"]:
-        return "authorized_user_exclusion"
-    if event.client_ip_key and event.client_ip_key in exclusions["client_ip_keys"]:
-        return "authorized_ip_exclusion"
-    if event.relying_party and event.relying_party in exclusions["relying_parties"]:
-        return "authorized_application_exclusion"
-    return ""
 
 
 def cooldown_for_alert(alert: dict, detection_config: dict) -> int:
@@ -111,19 +107,10 @@ def _recent_events(
     latest = datetime.fromisoformat(latest_cursor.timestamp_utc).astimezone(UTC)
     lookback = int(operational_config["detection_lookback_minutes"])
     since_utc = (latest - timedelta(minutes=lookback)).isoformat()
-    exclusions = load_exclusions(Path(operational_config["exclusions_file"]))
     events = []
     for row in store.recent_consistent_events(since_utc, source_name):
         event = event_from_row(row, detection_config["timezone"])
         if event is None:
-            continue
-        reason = exclusion_reason(event, exclusions)
-        if reason:
-            store.record_suppression(
-                reason,
-                source_event_id=event.source_event_id,
-                entity_key=AlertStore._entity_key(event.__dict__),
-            )
             continue
         events.append(event)
     return events
@@ -220,8 +207,9 @@ def run_monitor_cycle(
                 detection_config,
             )
             baseline = load_baseline_context(Path(operational_config["baseline_dir"]))
+            exclusions = load_exclusions(Path(operational_config["exclusions_file"]))
             created_alerts = _persist_alerts(
-                detect_alerts(events, detection_config, baseline),
+                detect_alerts(events, detection_config, baseline, exclusions),
                 store,
                 source.source_name,
                 detection_config,

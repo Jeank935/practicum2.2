@@ -33,6 +33,8 @@ El usuario PostgreSQL debe ser de solo lectura. Verifique permisos reales con la
 - Rechazos: `config/normalization.json`.
 - Exclusiones autorizadas: `config/exclusions.json`.
 
+Las exclusiones se registran únicamente mediante claves pseudonimizadas (`usr_...` e `ip_...`). No silencian completamente una fuente: elevan sus umbrales a los valores de `anomalous_thresholds`, por lo que un comportamiento excepcional todavía abre un caso. Los eventos normalizados permanecen disponibles para el reporte histórico.
+
 Tras cualquier cambio, ejecute `pytest`, `ruff` y el análisis completo. Compare volumen por regla y falsos positivos antes de aprobar una configuración.
 
 ## Diagnóstico

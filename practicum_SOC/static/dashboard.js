@@ -1,20 +1,28 @@
-const button = document.querySelector("#run-demo");
-const statusBox = document.querySelector("#demo-status");
+const dashboard = document.querySelector("[data-dashboard-revision]");
+const refreshStatus = document.querySelector("#refresh-status");
+const refreshIntervalMilliseconds = 5000;
+let currentRevision = dashboard?.dataset.dashboardRevision;
+let refreshInProgress = false;
 
-button?.addEventListener("click", async () => {
-  button.disabled = true;
-  button.textContent = "Ejecutando...";
-  statusBox.classList.add("visible");
-  statusBox.textContent = "Procesando el periodo de evaluación y actualizando la bandeja.";
+async function refreshWhenCasesChange() {
+  if (!dashboard || refreshInProgress || document.visibilityState !== "visible") return;
+  refreshInProgress = true;
   try {
-    const response = await fetch("/demo/run", { method: "POST" });
+    const response = await fetch("/api/dashboard-version", { cache: "no-store" });
+    if (!response.ok) throw new Error("Estado no disponible");
     const result = await response.json();
-    if (!response.ok) throw new Error(result.detail || "No fue posible ejecutar el demo");
-    statusBox.textContent = `Demo completado: ${result.created_alerts} alertas nuevas, ${result.persisted_alerts} persistidas.`;
-    window.setTimeout(() => window.location.reload(), 900);
-  } catch (error) {
-    statusBox.textContent = error.message;
-    button.disabled = false;
-    button.textContent = "Ejecutar demo";
+    if (result.revision !== currentRevision) {
+      refreshStatus.textContent = "Nuevos cambios detectados";
+      window.location.reload();
+      return;
+    }
+    refreshStatus.textContent = "Actualizado · sin cambios";
+  } catch (_error) {
+    refreshStatus.textContent = "Actualización temporalmente no disponible";
+  } finally {
+    refreshInProgress = false;
   }
-});
+}
+
+window.setInterval(refreshWhenCasesChange, refreshIntervalMilliseconds);
+document.addEventListener("visibilitychange", refreshWhenCasesChange);

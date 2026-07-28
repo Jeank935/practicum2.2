@@ -4,33 +4,52 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Bandeja SOC ADFS{% endblock %}</title>
-  <link rel="icon" type="image/png" href="{{ url_for('static', path='utpl3.png') }}">
-  <link rel="stylesheet" href="{{ url_for('static', path='styles.css') }}">
+  <link rel="icon" type="image/png" href="{{ url_for('static', path='utpl-institucional-azul.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', path='styles.css') }}?v=20260727-operational-1">
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="/" aria-label="UTPL — Bandeja SOC ADFS">
-      <img
-        class="brand-logo"
-        src="{{ url_for('static', path='utpl3.png') }}"
-        alt="UTPL, La Universidad Católica de Loja"
-      >
-      <span class="brand-context">
-        <strong>ADFS Monitor</strong>
-        <small>DGTITD · Operaciones SOC</small>
-      </span>
-    </a>
-    <nav aria-label="Navegación principal">
-      <a href="/">Resumen</a>
-      <a href="/alerts">Alertas</a>
-      <a href="/reports/latest">Reporte</a>
-      <a href="/health">Salud</a>
-    </nav>
-  </header>
-  <main class="page-shell">
-    {% block content %}{% endblock %}
-  </main>
-  <footer>UTPL · DGTITD — Motor demostrativo de apoyo SOC. Toda señal requiere revisión humana.</footer>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="/" aria-label="UTPL — Bandeja SOC ADFS">
+        <img
+          class="brand-logo"
+          src="{{ url_for('static', path='utpl-institucional-azul.png') }}"
+          alt="UTPL, La Universidad Católica de Loja"
+        >
+        <span class="brand-context">
+          <strong>ADFS Monitor</strong>
+          <small>DGTITD · Operaciones SOC</small>
+        </span>
+      </a>
+
+      <nav aria-label="Navegación principal">
+        <a href="/" {% if request.url.path == '/' %}class="active" aria-current="page"{% endif %}>
+          <span>Resumen</span><small>Vista general</small>
+        </a>
+        <a href="/alerts" {% if request.url.path.startswith('/alerts') %}class="active" aria-current="page"{% endif %}>
+          <span>Alertas</span><small>Casos SOC</small>
+        </a>
+        <a href="/reports/latest">
+          <span>Reporte</span><small>Análisis histórico</small>
+        </a>
+        <a href="/health" {% if request.url.path == '/health' %}class="active" aria-current="page"{% endif %}>
+          <span>Salud</span><small>Estado del servicio</small>
+        </a>
+      </nav>
+
+      <div class="sidebar-note">
+        <strong>Monitoreo institucional</strong>
+        <span>Señales pseudonimizadas para revisión humana.</span>
+      </div>
+    </aside>
+
+    <div class="content-shell">
+      <main class="page-shell">
+        {% block content %}{% endblock %}
+      </main>
+      <footer>UTPL · DGTITD — Motor de apoyo SOC. Toda señal requiere revisión humana.</footer>
+    </div>
+  </div>
   {% block scripts %}{% endblock %}
 </body>
 </html>

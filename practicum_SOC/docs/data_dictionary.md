@@ -72,8 +72,7 @@ se guarda: se protege con HMAC-SHA256 usando una clave externa al repositorio.
 - No se corrige una fecha de 1970 usando `created_at`, porque `created_at` puede
   representar una carga o actualización posterior, no la autenticación.
 - Los eventos problemáticos se conservan con banderas para auditoría.
-- `analysis/inconsistent_events.csv` separa una copia pseudonimizada de cada
-  fila con banderas; los duplicados no se incorporan por segunda vez al archivo
-  normalizado principal.
+- `analysis/rejected_events.csv` conserva los registros rechazados y su motivo;
+  los duplicados no se incorporan por segunda vez al archivo normalizado principal.
 - Las reglas SOC usarán `custom_ip_address`, no `source_ip`.
 - La clave de pseudonimización debe ser estable y administrada fuera del código.

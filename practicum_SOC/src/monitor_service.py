@@ -35,10 +35,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--pseudonym-key-file", type=Path)
     parser.add_argument("--env-file", type=Path, default=Path(".env"))
     parser.add_argument("--notification-mode", choices=("soc_inbox", "dry_run"))
+    parser.add_argument("--batch-size", type=int)
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--once", action="store_true")
     mode.add_argument("--loop", action="store_true")
     return parser.parse_args()
+
+
+def next_cycle_delay_seconds(result: dict, operational_config: dict) -> float:
+    """Evita esperas durante la recuperación y limita el sondeo en tiempo real."""
+    fetched = int(result.get("fetched", 0))
+    batch_size = int(operational_config["batch_size"])
+    if fetched >= batch_size:
+        return max(0.0, float(operational_config.get("catch_up_interval_seconds", 0)))
+    return max(0.0, float(operational_config["interval_seconds"]))
 
 
 def main() -> None:
@@ -50,13 +60,15 @@ def main() -> None:
     )
     detection_config = load_json(args.detection_config)
     operational_config = load_json(args.operational_config)
+    if args.batch_size is not None:
+        if args.batch_size < 1:
+            raise ValueError("--batch-size debe ser mayor que cero")
+        operational_config = {**operational_config, "batch_size": args.batch_size}
     normalization_config = NormalizationConfig.from_file(args.normalization_config)
     provider = build_notification_provider(
         args.notification_mode or operational_config["notification_mode"]
     )
     secret = read_pseudonym_secret(args.pseudonym_key_file)
-    interval = int(operational_config["interval_seconds"])
-
     requested_mode = args.source
     try:
         source = build_event_source(requested_mode, args.input_csv)
@@ -93,7 +105,9 @@ def main() -> None:
             print(json.dumps(result, ensure_ascii=False))
             if args.once:
                 break
-            time.sleep(interval)
+            delay_seconds = next_cycle_delay_seconds(result, operational_config)
+            if delay_seconds:
+                time.sleep(delay_seconds)
 
 
 if __name__ == "__main__":

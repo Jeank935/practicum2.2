@@ -62,7 +62,13 @@ class WebAppTests(unittest.TestCase):
             service.run_demo = lambda: {"created_alerts": 0, "persisted_alerts": 1}
             with patch.object(web_app, "service", service):
                 client = TestClient(web_app.app)
-                self.assertEqual(client.get("/").status_code, 200)
+                dashboard = client.get("/")
+                self.assertEqual(dashboard.status_code, 200)
+                self.assertIn("Pendientes de revisión", dashboard.text)
+                self.assertNotIn("CSV histórico", dashboard.text)
+                version = client.get("/api/dashboard-version")
+                self.assertEqual(version.status_code, 200)
+                self.assertIn("revision", version.json())
                 self.assertEqual(client.get("/alerts").status_code, 200)
                 self.assertEqual(client.get("/alerts/alt_1").status_code, 200)
                 updated = client.patch(

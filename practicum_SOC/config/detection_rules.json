@@ -14,36 +14,47 @@
   "brute_force_user": {
     "enabled": true,
     "window_minutes": 10,
-    "minimum_failures": 10,
+    "minimum_failures": 6,
     "cooldown_minutes": 15,
-    "base_risk": 70
+    "base_risk": 65,
+    "critical_failure_threshold": 20,
+    "intense_pattern_bonus": 20
   },
   "password_spraying_ip": {
     "enabled": true,
     "window_minutes": 10,
-    "minimum_failures": 10,
-    "minimum_distinct_users": 10,
+    "minimum_failures": 6,
+    "minimum_distinct_users": 3,
     "cooldown_minutes": 15,
-    "base_risk": 75,
-    "multiple_accounts_bonus": 5
+    "base_risk": 65,
+    "multiple_accounts_bonus": 5,
+    "critical_failure_threshold": 20,
+    "critical_distinct_users_threshold": 10,
+    "intense_pattern_bonus": 20
   },
   "success_after_failures": {
     "enabled": true,
     "window_minutes": 10,
     "minimum_failures": 5,
     "cooldown_minutes": 15,
-    "base_risk": 85,
-    "success_bonus": 10
+    "base_risk": 75,
+    "success_bonus": 5,
+    "critical_failure_threshold": 10,
+    "intense_pattern_bonus": 10
   },
   "account_lockout": {
     "enabled": true,
+    "window_minutes": 10,
+    "minimum_lockouts": 2,
     "cooldown_minutes": 1440,
-    "base_risk": 65
+    "base_risk": 85
   },
   "new_ip_for_user": {
     "enabled": true,
+    "window_minutes": 10,
+    "minimum_events": 3,
     "cooldown_minutes": 1440,
-    "base_risk": 50,
+    "base_risk": 40,
     "minimum_history_required": true
   },
   "after_hours": {
@@ -72,6 +83,6 @@
   },
   "repeated_lockout": {
     "enabled": false,
-    "reason_disabled": "Reemplazada en el MVP por bloqueo explícito con cooldown persistente"
+    "reason_disabled": "Integrada en AUTH_ACCOUNT_LOCKOUT mediante correlación de bloqueos en una ventana"
   }
 }

@@ -1,3 +1,0 @@
-# Conservado por compatibilidad con el flujo histórico.
-# La instalación completa y reproducible usa requirements.txt.
-psycopg[binary]==3.3.4

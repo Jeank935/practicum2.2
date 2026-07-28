@@ -18,6 +18,8 @@ analysis/baseline/
 analysis/alerts/
 analysis/state/
 analysis/report/
+analysis/reports/
+*.log
 *.db
 *.sqlite
 *.sqlite3

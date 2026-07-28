@@ -302,6 +302,25 @@ def cooldown_ready(
     return True
 
 
+def is_authorized_context(event: Event, exclusions: dict | None) -> bool:
+    """Indica si el evento pertenece a una exclusión operativa autorizada."""
+    if not exclusions:
+        return False
+    return bool(
+        (event.user_key and event.user_key in exclusions.get("user_keys", set()))
+        or (event.client_ip_key and event.client_ip_key in exclusions.get("client_ip_keys", set()))
+        or (event.relying_party and event.relying_party in exclusions.get("relying_parties", set()))
+    )
+
+
+def exclusion_threshold(exclusions: dict | None, name: str, default: int) -> int:
+    """Obtiene el umbral elevado de una exclusión sin debilitar la regla normal."""
+    if not exclusions:
+        return default
+    thresholds = exclusions.get("anomalous_thresholds", {})
+    return max(default, int(thresholds.get(name, default)))
+
+
 def _rule_alert(
     *,
     rule_id: str,
@@ -333,101 +352,170 @@ def _rule_alert(
     )
 
 
-def detect_brute_force(events: list[Event], config: dict) -> list[dict]:
+def detect_brute_force(
+    events: list[Event], config: dict, exclusions: dict | None = None
+) -> list[dict]:
     rule = config["brute_force_user"]
     if not rule["enabled"]:
         return []
-    histories: dict[str, deque[Event]] = defaultdict(deque)
+    histories: dict[tuple[str, bool], deque[Event]] = defaultdict(deque)
     cooldowns: dict[str, datetime] = {}
     alerts = []
     for event in events:
         if event.event_class != "failure" or not event.user_key:
             continue
-        history = histories[event.user_key]
+        authorized = is_authorized_context(event, exclusions)
+        history = histories[(event.user_key, authorized)]
         history.append(event)
         trim_window(history, event.timestamp, int(rule["window_minutes"]))
-        if history_weight(history, "failure") < int(rule["minimum_failures"]):
+        threshold = (
+            exclusion_threshold(exclusions, "failures_per_user", int(rule["minimum_failures"]))
+            if authorized
+            else int(rule["minimum_failures"])
+        )
+        failure_count = history_weight(history, "failure")
+        if failure_count < threshold:
             continue
         if not cooldown_ready(
-            cooldowns, event.user_key, event.timestamp, int(rule["cooldown_minutes"])
+            cooldowns,
+            f"{event.user_key}:{authorized}",
+            event.timestamp,
+            int(rule["cooldown_minutes"]),
         ):
             continue
+        intense_bonus = (
+            int(rule["intense_pattern_bonus"])
+            if failure_count >= int(rule["critical_failure_threshold"])
+            else 0
+        )
         alerts.append(
             _rule_alert(
                 rule_id="AUTH_BRUTE_FORCE_USER",
                 rule_name="Múltiples fallos contra un usuario",
                 evidence=list(history),
-                description="El usuario superó el umbral de fallos dentro de la ventana.",
+                description=(
+                    "Una cuenta autorizada superó el umbral anómalo de fallos en la ventana."
+                    if authorized
+                    else "El usuario superó el umbral de fallos dentro de la ventana."
+                ),
                 recommendation="Validar el origen y confirmar actividad con el responsable de la cuenta.",
                 config=config,
                 rule_config=rule,
-                threshold=int(rule["minimum_failures"]),
+                threshold=threshold,
+                context_factors=[("intense_pattern", intense_bonus)],
             )
         )
     return alerts
 
 
-def detect_password_spray(events: list[Event], config: dict) -> list[dict]:
+def detect_password_spray(
+    events: list[Event], config: dict, exclusions: dict | None = None
+) -> list[dict]:
     rule = config["password_spraying_ip"]
     if not rule["enabled"]:
         return []
-    histories: dict[str, deque[Event]] = defaultdict(deque)
+    histories: dict[tuple[str, bool], deque[Event]] = defaultdict(deque)
     cooldowns: dict[str, datetime] = {}
     alerts = []
     for event in events:
         if event.event_class != "failure" or not event.client_ip_key:
             continue
-        history = histories[event.client_ip_key]
+        authorized = is_authorized_context(event, exclusions)
+        history = histories[(event.client_ip_key, authorized)]
         history.append(event)
         trim_window(history, event.timestamp, int(rule["window_minutes"]))
         distinct_users = {item.user_key for item in history if item.user_key}
-        threshold_reached = history_weight(history, "failure") >= int(
-            rule["minimum_failures"]
-        ) and len(distinct_users) >= int(rule["minimum_distinct_users"])
+        failure_threshold = (
+            exclusion_threshold(exclusions, "failures_per_ip", int(rule["minimum_failures"]))
+            if authorized
+            else int(rule["minimum_failures"])
+        )
+        user_threshold = (
+            exclusion_threshold(
+                exclusions,
+                "distinct_users_per_ip",
+                int(rule["minimum_distinct_users"]),
+            )
+            if authorized
+            else int(rule["minimum_distinct_users"])
+        )
+        failure_count = history_weight(history, "failure")
+        threshold_reached = (
+            failure_count >= failure_threshold and len(distinct_users) >= user_threshold
+        )
         if not threshold_reached or not cooldown_ready(
             cooldowns,
-            event.client_ip_key,
+            f"{event.client_ip_key}:{authorized}",
             event.timestamp,
             int(rule["cooldown_minutes"]),
         ):
             continue
+        intense = failure_count >= int(rule["critical_failure_threshold"]) or len(
+            distinct_users
+        ) >= int(rule["critical_distinct_users_threshold"])
         alerts.append(
             _rule_alert(
                 rule_id="AUTH_PASSWORD_SPRAY_IP",
                 rule_name="Una IP intentando acceder a varias cuentas",
                 evidence=list(history),
-                description="La IP produjo fallos contra varias cuentas en la ventana.",
+                description=(
+                    "Una IP autorizada superó el umbral anómalo contra varias cuentas."
+                    if authorized
+                    else "La IP produjo fallos contra varias cuentas en la ventana."
+                ),
                 recommendation="Descartar primero NAT, proxy o infraestructura compartida autorizada.",
                 config=config,
                 rule_config=rule,
-                threshold=int(rule["minimum_failures"]),
-                context_factors=[("multiple_accounts", int(rule["multiple_accounts_bonus"]))],
+                threshold=failure_threshold,
+                context_factors=[
+                    ("multiple_accounts", int(rule["multiple_accounts_bonus"])),
+                    (
+                        "intense_pattern",
+                        int(rule["intense_pattern_bonus"]) if intense else 0,
+                    ),
+                ],
             )
         )
     return alerts
 
 
-def detect_success_after_failures(events: list[Event], config: dict) -> list[dict]:
+def detect_success_after_failures(
+    events: list[Event], config: dict, exclusions: dict | None = None
+) -> list[dict]:
     rule = config["success_after_failures"]
     if not rule["enabled"]:
         return []
-    failures: dict[str, deque[Event]] = defaultdict(deque)
+    failures: dict[tuple[str, bool], deque[Event]] = defaultdict(deque)
     cooldowns: dict[str, datetime] = {}
     alerts = []
     for event in events:
         if not event.user_key:
             continue
-        history = failures[event.user_key]
+        authorized = is_authorized_context(event, exclusions)
+        history = failures[(event.user_key, authorized)]
         trim_window(history, event.timestamp, int(rule["window_minutes"]))
         if event.event_class == "failure":
             history.append(event)
             continue
         if event.event_class != "success":
             continue
-        if history_weight(history, "failure") < int(rule["minimum_failures"]):
+        threshold = (
+            exclusion_threshold(
+                exclusions,
+                "success_after_failures",
+                int(rule["minimum_failures"]),
+            )
+            if authorized
+            else int(rule["minimum_failures"])
+        )
+        failure_count = history_weight(history, "failure")
+        if failure_count < threshold:
             continue
         if not cooldown_ready(
-            cooldowns, event.user_key, event.timestamp, int(rule["cooldown_minutes"])
+            cooldowns,
+            f"{event.user_key}:{authorized}",
+            event.timestamp,
+            int(rule["cooldown_minutes"]),
         ):
             continue
         evidence = [*history, event]
@@ -440,74 +528,127 @@ def detect_success_after_failures(events: list[Event], config: dict) -> list[dic
                 recommendation="Priorizar la revisión del origen y validar el acceso con el usuario.",
                 config=config,
                 rule_config=rule,
-                threshold=int(rule["minimum_failures"]) + 1,
-                context_factors=[("success_after_failures", int(rule["success_bonus"]))],
+                threshold=threshold + 1,
+                context_factors=[
+                    ("success_after_failures", int(rule["success_bonus"])),
+                    (
+                        "intense_pattern",
+                        int(rule["intense_pattern_bonus"])
+                        if failure_count >= int(rule["critical_failure_threshold"])
+                        else 0,
+                    ),
+                ],
             )
         )
     return alerts
 
 
-def detect_account_lockout(events: list[Event], config: dict) -> list[dict]:
+def detect_account_lockout(
+    events: list[Event], config: dict, exclusions: dict | None = None
+) -> list[dict]:
     rule = config["account_lockout"]
     if not rule["enabled"]:
         return []
+    histories: dict[tuple[str, bool], deque[Event]] = defaultdict(deque)
     cooldowns: dict[str, datetime] = {}
     alerts = []
     for event in events:
         if event.event_class != "lockout" or not event.user_key:
             continue
-        if not cooldown_ready(
-            cooldowns, event.user_key, event.timestamp, int(rule["cooldown_minutes"])
+        authorized = is_authorized_context(event, exclusions)
+        history = histories[(event.user_key, authorized)]
+        history.append(event)
+        trim_window(history, event.timestamp, int(rule["window_minutes"]))
+        threshold = (
+            exclusion_threshold(exclusions, "lockouts_per_user", int(rule["minimum_lockouts"]))
+            if authorized
+            else int(rule["minimum_lockouts"])
+        )
+        if history_weight(history, "lockout") < threshold or not cooldown_ready(
+            cooldowns,
+            f"{event.user_key}:{authorized}",
+            event.timestamp,
+            int(rule["cooldown_minutes"]),
         ):
             continue
         alerts.append(
             _rule_alert(
                 rule_id="AUTH_ACCOUNT_LOCKOUT",
-                rule_name="Bloqueo explícito de cuenta",
-                evidence=[event],
-                description="ADFS registró un evento explícito de bloqueo de cuenta.",
-                recommendation="Revisar intentos previos y confirmar si el bloqueo fue esperado.",
+                rule_name="Bloqueos múltiples de cuenta",
+                evidence=list(history),
+                description=(
+                    "Una cuenta autorizada superó el umbral anómalo de bloqueos."
+                    if authorized
+                    else "ADFS registró múltiples bloqueos de la misma cuenta en la ventana."
+                ),
+                recommendation="Revisar intentos previos y confirmar si los bloqueos fueron esperados.",
                 config=config,
                 rule_config=rule,
-                threshold=1,
+                threshold=threshold,
             )
         )
     return alerts
 
 
 def detect_new_ip(
-    events: list[Event], config: dict, baseline: BaselineContext | None
+    events: list[Event],
+    config: dict,
+    baseline: BaselineContext | None,
+    exclusions: dict | None = None,
 ) -> list[dict]:
     rule = config["new_ip_for_user"]
     if not rule["enabled"] or baseline is None:
         return []
+    histories: dict[tuple[str, str, bool], deque[Event]] = defaultdict(deque)
     cooldowns: dict[str, datetime] = {}
     alerts = []
     for event in evaluation_events(events, baseline):
-        if event.user_key not in baseline.sufficient_users or not event.client_ip_key:
+        if (
+            event.event_class not in {"success", "failure", "lockout"}
+            or event.user_key not in baseline.sufficient_users
+            or not event.client_ip_key
+        ):
             continue
         if (event.user_key, event.client_ip_key) in baseline.known_user_ips:
             continue
+        authorized = is_authorized_context(event, exclusions)
+        history = histories[(event.user_key, event.client_ip_key, authorized)]
+        history.append(event)
+        trim_window(history, event.timestamp, int(rule["window_minutes"]))
+        threshold = (
+            exclusion_threshold(exclusions, "new_ip_events", int(rule["minimum_events"]))
+            if authorized
+            else int(rule["minimum_events"])
+        )
+        if history_weight(history) < threshold:
+            continue
         if not cooldown_ready(
-            cooldowns, event.user_key, event.timestamp, int(rule["cooldown_minutes"])
+            cooldowns,
+            f"{event.user_key}:{event.client_ip_key}:{authorized}",
+            event.timestamp,
+            int(rule["cooldown_minutes"]),
         ):
             continue
         alerts.append(
             _rule_alert(
                 rule_id="AUTH_NEW_IP_FOR_USER",
                 rule_name="IP nueva para el usuario",
-                evidence=[event],
-                description="La IP pseudonimizada no aparece en la línea base suficiente del usuario.",
+                evidence=list(history),
+                description=(
+                    "Una IP autorizada nueva superó el umbral anómalo de actividad."
+                    if authorized
+                    else "Una IP nueva repitió actividad fuera de la línea base del usuario."
+                ),
                 recommendation="Validar si el origen es legítimo antes de clasificar la señal.",
                 config=config,
                 rule_config=rule,
-                threshold=1,
+                threshold=threshold,
             )
         )
     return alerts
 
 
-RuleDetector = Callable[[list[Event], dict], list[dict]]
+RuleDetector = Callable[[list[Event], dict, dict | None], list[dict]]
 WINDOW_RULES: tuple[RuleDetector, ...] = (
     detect_brute_force,
     detect_password_spray,
@@ -517,11 +658,16 @@ WINDOW_RULES: tuple[RuleDetector, ...] = (
 
 
 def detect_alerts(
-    events: list[Event], config: dict, baseline: BaselineContext | None = None
+    events: list[Event],
+    config: dict,
+    baseline: BaselineContext | None = None,
+    exclusions: dict | None = None,
 ) -> list[dict]:
     ordered_events = sorted(events, key=lambda event: (event.timestamp, event.source_event_id))
-    alerts = [alert for detector in WINDOW_RULES for alert in detector(ordered_events, config)]
-    alerts.extend(detect_new_ip(ordered_events, config, baseline))
+    alerts = [
+        alert for detector in WINDOW_RULES for alert in detector(ordered_events, config, exclusions)
+    ]
+    alerts.extend(detect_new_ip(ordered_events, config, baseline, exclusions))
     alerts.sort(key=lambda alert: (alert["first_seen_local"], alert["rule_id"]))
     return alerts
 

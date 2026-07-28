@@ -33,30 +33,31 @@ class DashboardService:
         self.detection_config = detection_config
         self.operational_config = operational_config
 
-    @staticmethod
-    def _read_optional_json(path: Path) -> dict:
-        return load_json(path) if path.is_file() else {}
-
     def overview(self) -> dict:
-        normalization = self._read_optional_json(self.analysis_dir / "normalization_stats.json")
-        baseline = self._read_optional_json(
-            self.analysis_dir / "baseline" / "baseline_summary.json"
-        )
         with AlertStore(self.state_db) as store:
             health = store.health_summary()
             source_name = health["active_source"]
             selected_source = source_name if source_name != "none" else DEMO_SOURCE_NAME
-            counts = store.alert_counts(selected_source)
+            operational = store.operational_alert_summary(selected_source)
             recent = store.list_alerts(8, source_name=selected_source)
         return {
-            "normalization": normalization,
-            "baseline": baseline,
             "health": health,
             "source_name": selected_source,
             "source_label": SOURCE_LABELS.get(selected_source, selected_source),
-            "alert_counts": counts,
+            "operational": operational,
             "recent_alerts": recent,
-            "disabled_rules": self.disabled_rules(),
+        }
+
+    def dashboard_version(self) -> dict:
+        with AlertStore(self.state_db) as store:
+            health = store.health_summary()
+            source_name = health["active_source"]
+            selected_source = source_name if source_name != "none" else DEMO_SOURCE_NAME
+            summary = store.operational_alert_summary(selected_source)
+        return {
+            "source": selected_source,
+            "revision": summary["revision"],
+            "last_updated_at_utc": summary["last_updated_at_utc"],
         }
 
     def disabled_rules(self) -> list[dict[str, str]]:

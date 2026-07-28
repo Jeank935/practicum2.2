@@ -2,5 +2,13 @@
   "authorized_user_keys": [],
   "authorized_client_ip_keys": [],
   "authorized_relying_parties": [],
+  "anomalous_thresholds": {
+    "failures_per_user": 25,
+    "failures_per_ip": 40,
+    "distinct_users_per_ip": 15,
+    "success_after_failures": 20,
+    "lockouts_per_user": 5,
+    "new_ip_events": 20
+  },
   "configuration_status": "empty_until_formally_authorized"
 }

@@ -37,6 +37,22 @@ def sample_alert(alert_id="alt_1", minute=0):
 
 
 class AlertStoreTests(unittest.TestCase):
+    def test_operational_summary_tracks_the_soc_queue(self):
+        with tempfile.TemporaryDirectory() as temp_directory:
+            path = Path(temp_directory) / "state.db"
+            with AlertStore(path) as store:
+                store.insert_alert(sample_alert(), source_name="postgresql_live")
+                initial = store.operational_alert_summary("postgresql_live")
+                self.assertEqual(initial["pending_review"], 1)
+                self.assertEqual(initial["investigating"], 0)
+                self.assertEqual(initial["open_by_severity"]["high"], 1)
+
+                store.update_alert_status("alt_1", "investigating", "Revisión")
+                updated = store.operational_alert_summary("postgresql_live")
+                self.assertEqual(updated["pending_review"], 0)
+                self.assertEqual(updated["investigating"], 1)
+                self.assertNotEqual(initial["revision"], updated["revision"])
+
     def test_checkpoint_event_deduplication_and_status_history(self):
         with tempfile.TemporaryDirectory() as temp_directory:
             path = Path(temp_directory) / "state.db"
