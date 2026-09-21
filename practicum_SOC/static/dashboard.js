@@ -9,6 +9,7 @@ async function refreshWhenCasesChange() {
   refreshInProgress = true;
   try {
     const response = await fetch("/api/dashboard-version", { cache: "no-store" });
+    if (redirectWhenSessionExpired(response)) return;
     if (!response.ok) throw new Error("Estado no disponible");
     const result = await response.json();
     if (result.revision !== currentRevision) {

@@ -3,6 +3,9 @@ node_modules/
 __pycache__/
 *.pyc
 .env
+.env.docker
+.env.*.local
+backups/
 .secrets/
 
 # Los CSV fuente contienen datos operativos reales.
@@ -19,6 +22,7 @@ analysis/alerts/
 analysis/state/
 analysis/report/
 analysis/reports/
+analysis/sprint4-ui/
 *.log
 *.db
 *.sqlite

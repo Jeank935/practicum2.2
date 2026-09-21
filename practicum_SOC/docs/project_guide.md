@@ -47,6 +47,9 @@ Los registros aislados permanecen como eventos normalizados. Solo los patrones q
 | `config/exclusions.json` | Pseudónimos de cuentas técnicas, IP autorizadas y sus umbrales anómalos elevados. |
 | `config/operational.json` | Tamaño de lote, intervalos, lookback y política de notificación. |
 
+El bloque `services_dashboard` de `config/operational.json` controla las ventanas disponibles,
+el número de servicios destacados y el umbral visual de baja frecuencia.
+
 Los valores operativos se cambian en estos JSON; no se deben introducir números mágicos en el código.
 
 ## Código Python (`src/`)
@@ -79,10 +82,12 @@ Los valores operativos se cambian en estos JSON; no se deben introducir números
 | `templates/base.html` | Estructura común, navegación lateral y logo institucional. |
 | `templates/dashboard.html` | Resumen operativo de casos pendientes, severidad y actividad reciente. |
 | `templates/alerts.html` | Bandeja con filtros de severidad, estado y regla. |
+| `templates/services.html` | Métricas de uso, servicios frecuentes y servicios con baja actividad. |
 | `templates/alert_detail.html` | Evidencia y cambio de estado de un caso. |
 | `templates/partials/alerts_table.html` | Tabla reutilizable de alertas. |
 | `static/styles.css` | Diseño blanco institucional, navegación y colores de severidad. |
 | `static/dashboard.js` | Consulta cambios cada cinco segundos y actualiza únicamente cuando existen datos nuevos. |
+| `static/services.js` | Actualiza el dashboard de servicios cuando llegan nuevos eventos. |
 | `static/alert-detail.js` | Envía mediante API el cambio de estado de una alerta. |
 | `static/utpl-institucional-azul.png` | Logo utilizado por la plataforma. |
 

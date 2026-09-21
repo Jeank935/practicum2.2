@@ -1,0 +1,197 @@
+name: adfs-soc
+
+x-storage: &storage
+  SOC_STORAGE_BACKEND: postgres
+  SOC_STORAGE_HOST: postgres
+  SOC_STORAGE_PORT: "5432"
+  SOC_STORAGE_DB: soc
+  SOC_STORAGE_USER: soc_app
+  SOC_STORAGE_PASSWORD: ${SOC_APP_PASSWORD:?Genere .env.docker}
+  # Solo red Docker del piloto; exigir TLS validado al separar los servidores.
+  SOC_STORAGE_SSLMODE: disable
+
+x-app: &app
+  build: .
+  image: adfs-soc:local
+  init: true
+  networks: [soc]
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+  volumes:
+    - analysis:/app/analysis
+  depends_on:
+    init:
+      condition: service_completed_successfully
+
+services:
+  postgres:
+    image: postgres:18-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: soc
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${SOC_POSTGRES_PASSWORD:?Genere .env.docker}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    networks: [soc]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d soc"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  init:
+    <<: *app
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      <<: *storage
+      SOC_STORAGE_USER: postgres
+      SOC_STORAGE_PASSWORD: ${SOC_POSTGRES_PASSWORD:?Genere .env.docker}
+      SOC_ALLOW_STORAGE_INIT: "yes"
+      SOC_APP_PASSWORD: ${SOC_APP_PASSWORD:?Genere .env.docker}
+      SOC_GRAFANA_PASSWORD: ${SOC_GRAFANA_PASSWORD:?Genere .env.docker}
+    command: ["python", "src/container_init.py"]
+
+  web:
+    <<: *app
+    restart: unless-stopped
+    depends_on:
+      init:
+        condition: service_completed_successfully
+      keycloak:
+        condition: service_healthy
+    environment:
+      <<: *storage
+      SOC_AUTH_MODE: oidc
+      SOC_PUBLIC_URL: http://127.0.0.1:${SOC_WEB_PORT:-8000}
+      SOC_OIDC_ISSUER: http://127.0.0.1:${SOC_IDP_PORT:-8080}/realms/soc
+      SOC_OIDC_INTERNAL_ORIGIN: http://keycloak:8080
+      SOC_OIDC_CLIENT_ID: soc-web
+      SOC_OIDC_CLIENT_SECRET: ${SOC_OIDC_CLIENT_SECRET:?Actualice .env.docker con setup_docker.py}
+    ports: ["127.0.0.1:${SOC_WEB_PORT:-8000}:8000"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  worker:
+    <<: *app
+    profiles: [live]
+    restart: unless-stopped
+    environment:
+      <<: *storage
+      SOC_PSEUDONYM_KEY: ${SOC_PSEUDONYM_KEY:?Genere .env.docker}
+      SOC_DB_DSN: ${SOC_DB_DSN:-}
+      SOC_DB_VIEW: ${SOC_DB_VIEW:-}
+      SOC_DB_TIME_COLUMN: ${SOC_DB_TIME_COLUMN:-event_time}
+      SOC_DB_ID_COLUMN: ${SOC_DB_ID_COLUMN:-event_id}
+      SOC_INITIAL_CHECKPOINT_TIME_UTC: ${SOC_INITIAL_CHECKPOINT_TIME_UTC:-}
+      SOC_INITIAL_CHECKPOINT_EVENT_ID: ${SOC_INITIAL_CHECKPOINT_EVENT_ID:-}
+    volumes:
+      - analysis:/app/analysis
+      - type: bind
+        source: ${SOC_CSV_PATH:-./data/INTEGRATIONDB_integrt_security_event_logs1.csv}
+        target: /data/events.csv
+        read_only: true
+        bind:
+          create_host_path: false
+    command: ["python", "src/monitor_service.py", "--source", "postgres", "--input-csv", "/data/events.csv", "--loop"]
+
+  demo:
+    <<: *app
+    profiles: [demo]
+    restart: "no"
+    environment:
+      <<: *storage
+      SOC_PSEUDONYM_KEY: ${SOC_PSEUDONYM_KEY:?Genere .env.docker}
+    volumes:
+      - analysis:/app/analysis
+      - type: bind
+        source: ${SOC_CSV_PATH:-./data/INTEGRATIONDB_integrt_security_event_logs1.csv}
+        target: /data/events.csv
+        read_only: true
+        bind:
+          create_host_path: false
+    command: ["python", "src/container_demo.py"]
+
+  identity-db:
+    image: postgres:18-bookworm
+    restart: unless-stopped
+    networks: [soc]
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${SOC_IDP_DB_PASSWORD:?Actualice .env.docker}
+    volumes:
+      - identity_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  keycloak:
+    image: quay.io/keycloak/keycloak@sha256:82a77884f3af238beab1e7afd63b5f530e1b5c0590bd7aa60b40a40463e29b2c
+    restart: unless-stopped
+    networks: [soc]
+    depends_on:
+      identity-db:
+        condition: service_healthy
+    ports: ["127.0.0.1:${SOC_IDP_PORT:-8080}:8080"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://identity-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${SOC_IDP_DB_PASSWORD:?Actualice .env.docker}
+      KC_HOSTNAME: http://127.0.0.1:${SOC_IDP_PORT:-8080}
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+      KC_BOOTSTRAP_ADMIN_USERNAME: identity-admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${SOC_IDP_ADMIN_PASSWORD:?Actualice .env.docker}
+      SOC_PUBLIC_URL: http://127.0.0.1:${SOC_WEB_PORT:-8000}
+      SOC_OIDC_CLIENT_SECRET: ${SOC_OIDC_CLIENT_SECRET:?Actualice .env.docker}
+      SOC_BOOTSTRAP_ADMIN_PASSWORD: ${SOC_BOOTSTRAP_ADMIN_PASSWORD:?Actualice .env.docker}
+      SOC_BOOTSTRAP_ANALYST_PASSWORD: ${SOC_BOOTSTRAP_ANALYST_PASSWORD:?Actualice .env.docker}
+    volumes:
+      - ./deploy/keycloak:/opt/keycloak/data/import:ro
+    command: ["start", "--import-realm"]
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9000; printf 'GET /health/ready HTTP/1.0\r\n\r\n' >&3; grep -q '200' <&3"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 30
+
+  grafana:
+    image: grafana/grafana@sha256:ac461fb352abc50da10a51c7d02462e9c05488f11f53f14b3ad79a8145f638a0
+    restart: unless-stopped
+    networks: [soc]
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    ports: ["127.0.0.1:${SOC_GRAFANA_PORT:-3000}:3000"]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Genere .env.docker}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      SOC_GRAFANA_PASSWORD: ${SOC_GRAFANA_PASSWORD:?Genere .env.docker}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/grafana/dashboards:/var/lib/grafana/dashboards:ro
+
+networks:
+  soc:
+volumes:
+  postgres_data:
+  analysis:
+  grafana_data:
+  identity_data:

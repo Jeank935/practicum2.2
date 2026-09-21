@@ -1,0 +1,163 @@
+{
+  "labels": {
+    "http://utpl.instructure.com/saml2": "Canvas UTPL",
+    "https://srv-si-001.utpl.edu.ec/soyutpl": "Soy UTPL",
+    "microsoft:identityserver:utpl.zoom.us": "Zoom institucional",
+    "http://sts.utpl.edu.ec/adfs/services/trust": "Servicios de confianza ADFS",
+    "urn:federation:MicrosoftOnline": "Microsoft 365",
+    "https://eis-prod.srv.utpl.edu.ec:443/samlsso": "Inicio de sesión EIS — producción",
+    "https://srv-si-001.utpl.edu.ec/gradebook_consultas_v1": "Consulta de calificaciones",
+    "https://srv-si-001.utpl.edu.ec/ESTUDIANTE-360-PRO": "Estudiante 360",
+    "https://srv-si-001.utpl.edu.ec/avance_titulacion_pro": "Avance de titulación",
+    "https://srv-si-001.utpl.edu.ec/gestevalerpprod": "Gestión de evaluación ERP",
+    "https://login.openathens.net/saml/2/metadata-sp/utpl.edu.ec/la/4001": "OpenAthens — recursos bibliográficos",
+    "https://srv-si-001.utpl.edu.ec/WebServiciosVirtuales": "Servicios virtuales UTPL",
+    "https://srv-si-001.utpl.edu.ec/utplpayfederatedpro": "Pagos UTPL",
+    "https://srv-si-001.utpl.edu.ec/registro_calificaiones_v1": "Registro de calificaciones",
+    "https://srv-si-001.utpl.edu.ec/kioscoswebpro": "Kioscos web UTPL",
+    "https://auth.elibro.net/sp": "eLibro — biblioteca digital",
+    "https://srv-si-001.utpl.edu.ec/gradebook_v1": "Libro de calificaciones",
+    "https://soporte.utpl.edu.ec/ASDKV8/": "Mesa de ayuda UTPL",
+    "http://schemas.microsoft.com/ws/2009/12/identityserver/selfscope": "Autoservicio de identidad Microsoft",
+    "urn:microsoft:userinfo": "Perfil de usuario Microsoft",
+    "https://espaciosdeportivos.utpl.edu.ec/": "Reserva de espacios deportivos",
+    "https://srv-si-001.utpl.edu.ec/UTE": "UTE",
+    "https://srv-si-002.utpl.edu.ec/APP_ADJUNTOS_PRO/": "Gestión de archivos adjuntos",
+    "https://srv-si-001.utpl.edu.ec/websrvtest": "Servicios web — pruebas",
+    "https://srv-si-001.utpl.edu.ec/payapiadminpro": "Administración de pagos API",
+    "https://srv-si-001.utpl.edu.ec/esbproduccion": "Bus de servicios empresariales — producción",
+    "https://app.virtualex.ec/simplesamlphp/public/module.php/saml/sp/metadata.php/default-sp": "VirtualEx",
+    "https://srv-si-001.utpl.edu.ec/SGASSO": "SGA — inicio de sesión único",
+    "https://soporte.utpl.edu.ec/USDKv8": "Portal de soporte UTPL",
+    "https://eis-dev.srv.utpl.edu.ec:443/samlsso": "Inicio de sesión EIS — desarrollo",
+    "https://sso.cas.org": "CAS — inicio de sesión único",
+    "https://srv-si-001.utpl.edu.ec/SSOTEST/": "Inicio de sesión único — pruebas",
+    "https://srv-si-001.utpl.edu.ec/integracion_canvas_v1": "Integración con Canvas",
+    "microsoft:identityserver:ellucian-experience-test": "Ellucian Experience — pruebas",
+    "https://srv-si-001.utpl.edu.ec/gestev": "Gestión de evaluación",
+    "https://srv-si-001.utpl.edu.ec/gradebook_consultas": "Consulta de calificaciones — versión anterior",
+    "http://utpl_ec.instructure.com/saml2": "Canvas UTPL — cuenta alterna",
+    "https://srv-si-001.utpl.edu.ec/gradebook_qa_v2": "Libro de calificaciones — calidad",
+    "https://consultahorarios.utpl.edu.ec/": "Consulta de horarios",
+    "https://srv-si-001.utpl.edu.ec/visor_qa": "Visor — calidad",
+    "https://srv-si-001.utpl.edu.ec/NSFASSO": "NSFA — inicio de sesión único",
+    "https://pruebas.virtualex.ec/simplesaml/www/module.php/saml/sp/metadata.php/default-sp": "VirtualEx — pruebas"
+  },
+  "sensitivity": {
+    "http://sts.utpl.edu.ec/adfs/services/trust": {
+      "level": "high",
+      "category": "Identidad",
+      "reason": "Infraestructura de confianza utilizada por la federación ADFS."
+    },
+    "https://eis-prod.srv.utpl.edu.ec:443/samlsso": {
+      "level": "high",
+      "category": "Integración",
+      "reason": "Punto de autenticación del entorno productivo de integración."
+    },
+    "https://srv-si-001.utpl.edu.ec/gradebook_consultas_v1": {
+      "level": "high",
+      "category": "Académico",
+      "reason": "Consulta información académica y calificaciones."
+    },
+    "https://srv-si-001.utpl.edu.ec/ESTUDIANTE-360-PRO": {
+      "level": "medium",
+      "category": "Académico",
+      "reason": "Concentra información académica del estudiante."
+    },
+    "https://srv-si-001.utpl.edu.ec/avance_titulacion_pro": {
+      "level": "medium",
+      "category": "Académico",
+      "reason": "Gestiona información relacionada con procesos de titulación."
+    },
+    "https://srv-si-001.utpl.edu.ec/gestevalerpprod": {
+      "level": "high",
+      "category": "Académico",
+      "reason": "Gestión de evaluaciones conectada con el ERP productivo."
+    },
+    "https://srv-si-001.utpl.edu.ec/WebServiciosVirtuales": {
+      "level": "medium",
+      "category": "Integración",
+      "reason": "Expone servicios virtuales institucionales."
+    },
+    "https://srv-si-001.utpl.edu.ec/utplpayfederatedpro": {
+      "level": "high",
+      "category": "Financiero",
+      "reason": "Servicio productivo relacionado con pagos institucionales."
+    },
+    "https://srv-si-001.utpl.edu.ec/registro_calificaiones_v1": {
+      "level": "high",
+      "category": "Académico",
+      "reason": "Permite registrar información de calificaciones."
+    },
+    "https://srv-si-001.utpl.edu.ec/gradebook_v1": {
+      "level": "high",
+      "category": "Académico",
+      "reason": "Gestiona el libro institucional de calificaciones."
+    },
+    "https://srv-si-002.utpl.edu.ec/APP_ADJUNTOS_PRO/": {
+      "level": "medium",
+      "category": "Documental",
+      "reason": "Gestiona archivos adjuntos del entorno productivo."
+    },
+    "https://srv-si-001.utpl.edu.ec/websrvtest": {
+      "level": "medium",
+      "category": "Pruebas",
+      "reason": "Entorno no productivo que requiere acceso controlado."
+    },
+    "https://srv-si-001.utpl.edu.ec/payapiadminpro": {
+      "level": "high",
+      "category": "Financiero",
+      "reason": "Interfaz administrativa de la API de pagos."
+    },
+    "https://srv-si-001.utpl.edu.ec/esbproduccion": {
+      "level": "high",
+      "category": "Integración",
+      "reason": "Bus de servicios que conecta sistemas productivos."
+    },
+    "https://srv-si-001.utpl.edu.ec/SGASSO": {
+      "level": "high",
+      "category": "Identidad",
+      "reason": "Inicio de sesión único asociado al sistema de gestión académica."
+    },
+    "https://eis-dev.srv.utpl.edu.ec:443/samlsso": {
+      "level": "high",
+      "category": "Desarrollo",
+      "reason": "Entorno de desarrollo de integración con acceso restringido."
+    },
+    "https://srv-si-001.utpl.edu.ec/SSOTEST/": {
+      "level": "medium",
+      "category": "Pruebas",
+      "reason": "Entorno de pruebas del inicio de sesión único."
+    },
+    "https://srv-si-001.utpl.edu.ec/integracion_canvas_v1": {
+      "level": "medium",
+      "category": "Integración",
+      "reason": "Integra la plataforma académica Canvas con servicios institucionales."
+    },
+    "microsoft:identityserver:ellucian-experience-test": {
+      "level": "medium",
+      "category": "Pruebas",
+      "reason": "Entorno de pruebas de Ellucian Experience."
+    },
+    "https://srv-si-001.utpl.edu.ec/gradebook_qa_v2": {
+      "level": "high",
+      "category": "Calidad",
+      "reason": "Entorno de calidad asociado con información de calificaciones."
+    },
+    "https://srv-si-001.utpl.edu.ec/visor_qa": {
+      "level": "medium",
+      "category": "Calidad",
+      "reason": "Entorno de aseguramiento de calidad con acceso controlado."
+    },
+    "https://srv-si-001.utpl.edu.ec/NSFASSO": {
+      "level": "high",
+      "category": "Identidad",
+      "reason": "Servicio de inicio de sesión único institucional."
+    },
+    "https://pruebas.virtualex.ec/simplesaml/www/module.php/saml/sp/metadata.php/default-sp": {
+      "level": "medium",
+      "category": "Pruebas",
+      "reason": "Entorno de pruebas federado de VirtualEx."
+    }
+  }
+}

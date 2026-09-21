@@ -12,6 +12,8 @@
     "max_volume_bonus": 10
   },
   "brute_force_user": {
+    "rule_id": "AUTH_BRUTE_FORCE_USER",
+    "display_name": "Múltiples fallos contra un usuario",
     "enabled": true,
     "window_minutes": 10,
     "minimum_failures": 6,
@@ -21,6 +23,8 @@
     "intense_pattern_bonus": 20
   },
   "password_spraying_ip": {
+    "rule_id": "AUTH_PASSWORD_SPRAY_IP",
+    "display_name": "Una IP intentando acceder a varias cuentas",
     "enabled": true,
     "window_minutes": 10,
     "minimum_failures": 6,
@@ -33,6 +37,8 @@
     "intense_pattern_bonus": 20
   },
   "success_after_failures": {
+    "rule_id": "AUTH_SUCCESS_AFTER_FAILURES",
+    "display_name": "Éxito después de múltiples fallos",
     "enabled": true,
     "window_minutes": 10,
     "minimum_failures": 5,
@@ -43,6 +49,8 @@
     "intense_pattern_bonus": 10
   },
   "account_lockout": {
+    "rule_id": "AUTH_ACCOUNT_LOCKOUT",
+    "display_name": "Bloqueos múltiples de cuenta",
     "enabled": true,
     "window_minutes": 10,
     "minimum_lockouts": 2,
@@ -50,6 +58,8 @@
     "base_risk": 85
   },
   "new_ip_for_user": {
+    "rule_id": "AUTH_NEW_IP_FOR_USER",
+    "display_name": "IP nueva para el usuario",
     "enabled": true,
     "window_minutes": 10,
     "minimum_events": 3,

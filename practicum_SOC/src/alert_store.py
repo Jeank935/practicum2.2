@@ -9,7 +9,9 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from uuid import uuid4
 
+from browsing_schema import canonical_time
 from sqlite_schema import ensure_schema
 
 ALERT_STATUSES = {
@@ -23,6 +25,33 @@ ALERT_STATUSES = {
 
 def utc_now() -> str:
     return datetime.now(UTC).isoformat()
+
+
+def percentage(part: int, total: int) -> float:
+    return round((part / total) * 100, 2) if total else 0.0
+
+
+def enrich_service_rows(rows: list[sqlite3.Row]) -> tuple[list[dict], int]:
+    total_events = sum(int(row["total_events"] or 0) for row in rows)
+    maximum_events = max((int(row["total_events"] or 0) for row in rows), default=0)
+    services = []
+    for row in rows:
+        item = dict(row)
+        for key in (
+            "total_events",
+            "success_count",
+            "failure_count",
+            "lockout_count",
+            "distinct_users",
+            "distinct_client_ips",
+        ):
+            item[key] = int(item[key] or 0)
+        adverse_events = item["failure_count"] + item["lockout_count"]
+        item["adverse_rate"] = percentage(adverse_events, item["total_events"])
+        item["share_percent"] = percentage(item["total_events"], total_events)
+        item["bar_percent"] = percentage(item["total_events"], maximum_events)
+        services.append(item)
+    return services, total_events
 
 
 class AlertStore:
@@ -275,6 +304,15 @@ class AlertStore:
                 values,
             )
             self.connection.execute(
+                "UPDATE alerts SET occurred_at_utc = ? WHERE alert_id = ?",
+                (canonical_time(alert["first_seen_local"]), alert["alert_id"]),
+            )
+            for identifier in set(filter(None, str(alert.get("relying_parties", "")).split(";"))):
+                self.connection.execute(
+                    "INSERT INTO alert_services VALUES (?, ?) ON CONFLICT DO NOTHING",
+                    (alert["alert_id"], identifier),
+                )
+            self.connection.execute(
                 """
                 INSERT INTO alert_status_history(
                     alert_id, old_status, new_status, changed_at_utc, note
@@ -389,10 +427,125 @@ class AlertStore:
         summary["revision"] = f"{source_name}:{summary['total']}:{summary['last_updated_at_utc']}"
         return summary
 
+    def open_alert_counts_by_service(self, source_name: str) -> dict[str, dict]:
+        """Agrupa casos abiertos por relying party para contextualizar servicios sensibles."""
+        rows = self.connection.execute(
+            """
+            SELECT alert_id, relying_parties, severity, updated_at_utc
+            FROM alerts
+            WHERE source_name = ?
+              AND investigation_status IN ('new', 'notified', 'investigating')
+              AND TRIM(COALESCE(relying_parties, '')) <> ''
+            ORDER BY updated_at_utc DESC
+            """,
+            (source_name,),
+        ).fetchall()
+        severity_rank = {"low": 0, "medium": 1, "high": 2, "critical": 3}
+        result: dict[str, dict] = {}
+        for row in rows:
+            for identifier in filter(None, str(row["relying_parties"]).split(";")):
+                current = result.setdefault(
+                    identifier,
+                    {
+                        "count": 0,
+                        "highest_severity": row["severity"],
+                        "latest_alert_id": row["alert_id"],
+                    },
+                )
+                current["count"] += 1
+                if severity_rank.get(row["severity"], 0) > severity_rank.get(
+                    current["highest_severity"], 0
+                ):
+                    current["highest_severity"] = row["severity"]
+        return result
+
+    def service_metrics(
+        self,
+        source_name: str,
+        *,
+        window_days: int,
+        top_limit: int,
+        rare_max_events: int,
+    ) -> dict:
+        """Resume el uso de relying parties sin exponer usuarios ni direcciones IP."""
+        latest_event = self.connection.execute(
+            """
+            SELECT MAX(event_time_utc) AS latest_event_time
+            FROM normalized_events
+            WHERE source_name = ? AND is_consistent = 1
+            """,
+            (source_name,),
+        ).fetchone()["latest_event_time"]
+
+        period_filter = ""
+        parameters: list[object] = [source_name]
+        if window_days > 0 and latest_event:
+            period_filter = " AND event_time_utc >= ?"
+            since = datetime.fromisoformat(latest_event) - timedelta(days=window_days)
+            parameters.append(since.isoformat())
+
+        rows = self.connection.execute(
+            f"""
+            SELECT
+                relying_party,
+                SUM(event_count) AS total_events,
+                SUM(CASE WHEN event_class = 'success' THEN event_count ELSE 0 END)
+                    AS success_count,
+                SUM(CASE WHEN event_class = 'failure' THEN event_count ELSE 0 END)
+                    AS failure_count,
+                SUM(CASE WHEN event_class = 'lockout' THEN event_count ELSE 0 END)
+                    AS lockout_count,
+                COUNT(DISTINCT NULLIF(user_key, '')) AS distinct_users,
+                COUNT(DISTINCT NULLIF(client_ip_key, '')) AS distinct_client_ips,
+                MIN(event_time_utc) AS first_seen_utc,
+                MAX(event_time_utc) AS last_seen_utc
+            FROM normalized_events
+            WHERE source_name = ?
+              AND is_consistent = 1
+              AND TRIM(COALESCE(relying_party, '')) <> ''
+              {period_filter}
+            GROUP BY relying_party
+            ORDER BY total_events DESC, relying_party
+            """,
+            parameters,
+        ).fetchall()
+
+        services, total_events = enrich_service_rows(rows)
+        distinct_users = self.connection.execute(
+            f"""
+            SELECT COUNT(DISTINCT NULLIF(user_key, '')) AS count
+            FROM normalized_events
+            WHERE source_name = ? AND is_consistent = 1
+              AND TRIM(COALESCE(relying_party, '')) <> ''
+              {period_filter}
+            """,
+            parameters,
+        ).fetchone()["count"]
+
+        rare_services = [
+            service for service in reversed(services) if service["total_events"] <= rare_max_events
+        ]
+        return {
+            "source_name": source_name,
+            "window_days": window_days,
+            "latest_event_time": latest_event,
+            "total_events": total_events,
+            "distinct_services": len(services),
+            "distinct_users": int(distinct_users or 0),
+            "success_count": sum(service["success_count"] for service in services),
+            "failure_count": sum(service["failure_count"] for service in services),
+            "lockout_count": sum(service["lockout_count"] for service in services),
+            "top_services": services[:top_limit],
+            "rare_services": rare_services,
+            "services": services,
+            "rare_max_events": rare_max_events,
+            "revision": f"{source_name}:{total_events}:{latest_event or 'none'}",
+        }
+
     def alert_history(self, alert_id: str) -> list[dict]:
         rows = self.connection.execute(
             """
-            SELECT old_status, new_status, changed_at_utc, note
+            SELECT old_status, new_status, changed_at_utc, note, actor_id, actor_name
               FROM alert_status_history WHERE alert_id = ?
              ORDER BY changed_at_utc
             """,
@@ -441,7 +594,15 @@ class AlertStore:
             "counts": dict(counts),
         }
 
-    def update_alert_status(self, alert_id: str, new_status: str, note: str = "") -> None:
+    def update_alert_status(
+        self,
+        alert_id: str,
+        new_status: str,
+        note: str = "",
+        *,
+        actor_id: str = "system",
+        actor_name: str = "Motor SOC",
+    ) -> None:
         if new_status not in ALERT_STATUSES:
             raise ValueError(f"Estado de alerta no permitido: {new_status}")
         current = self.get_alert(alert_id)
@@ -462,10 +623,22 @@ class AlertStore:
             self.connection.execute(
                 """
                 INSERT INTO alert_status_history(
-                    alert_id, old_status, new_status, changed_at_utc, note
-                ) VALUES (?, ?, ?, ?, ?)
+                    alert_id, old_status, new_status, changed_at_utc, note, actor_id, actor_name
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
-                (alert_id, old_status, new_status, changed_at, note),
+                (alert_id, old_status, new_status, changed_at, note, actor_id, actor_name),
+            )
+            self.connection.execute(
+                "INSERT INTO platform_audit VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    uuid4().hex,
+                    actor_id,
+                    actor_name,
+                    "alert_status_changed",
+                    alert_id,
+                    json.dumps({"old_status": old_status, "new_status": new_status}),
+                    changed_at,
+                ),
             )
 
     def delivery_succeeded(self, alert_id: str, channel: str) -> bool:

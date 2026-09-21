@@ -1,0 +1,11 @@
+**
+!Dockerfile
+!requirements.txt
+!src/
+!src/**/*.py
+!config/
+!config/*.json
+!templates/
+!templates/**
+!static/
+!static/**

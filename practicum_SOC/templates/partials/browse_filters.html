@@ -1,0 +1,4 @@
+<label>Desde (Loja)<input type="date" name="date_from" value="{{ filters.date_from or '' }}"></label>
+<label>Hasta (Loja)<input type="date" name="date_to" value="{{ filters.date_to or '' }}"></label>
+<label>Servicio<select name="service"><option value="">Todos</option>{% for identifier, label in catalog.items() %}<option value="{{ identifier }}" {% if filters.service == identifier %}selected{% endif %}>{{ label }}</option>{% endfor %}{% if filters.service and filters.service not in catalog %}<option value="{{ filters.service }}" selected>{{ filters.service }}</option>{% endif %}</select></label>
+<label>Por página<input type="number" name="page_size" min="1" max="100" value="{{ filters.page_size }}" required></label>

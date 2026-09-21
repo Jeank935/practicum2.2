@@ -37,6 +37,41 @@ def sample_alert(alert_id="alt_1", minute=0):
 
 
 class AlertStoreTests(unittest.TestCase):
+    def test_service_metrics_separate_common_and_rare_services(self):
+        with tempfile.TemporaryDirectory() as temp_directory:
+            path = Path(temp_directory) / "state.db"
+            with AlertStore(path) as store:
+                for index, service_name in enumerate(["app_common"] * 3 + ["app_rare"]):
+                    event = {
+                        "source_event_id": f"evt_{index}",
+                        "record_id": str(index),
+                        "event_time_utc": f"2026-03-16T10:0{index}:00+00:00",
+                        "event_class": "success" if index < 3 else "failure",
+                        "event_type_id": "1200" if index < 3 else "1203",
+                        "event_name": "Evento sintético",
+                        "user_key": f"usr_{index}",
+                        "client_ip_key": f"ip_{index}",
+                        "relying_party": service_name,
+                        "event_count": 1,
+                        "quality_flags": "",
+                    }
+                    store.insert_event(
+                        event,
+                        event["event_time_utc"],
+                        str(index),
+                        True,
+                        source_name="test",
+                    )
+
+                metrics = store.service_metrics(
+                    "test", window_days=0, top_limit=10, rare_max_events=1
+                )
+                self.assertEqual(metrics["total_events"], 4)
+                self.assertEqual(metrics["distinct_services"], 2)
+                self.assertEqual(metrics["top_services"][0]["relying_party"], "app_common")
+                self.assertEqual(metrics["rare_services"][0]["relying_party"], "app_rare")
+                self.assertEqual(metrics["failure_count"], 1)
+
     def test_operational_summary_tracks_the_soc_queue(self):
         with tempfile.TemporaryDirectory() as temp_directory:
             path = Path(temp_directory) / "state.db"
@@ -52,6 +87,20 @@ class AlertStoreTests(unittest.TestCase):
                 self.assertEqual(updated["pending_review"], 0)
                 self.assertEqual(updated["investigating"], 1)
                 self.assertNotEqual(initial["revision"], updated["revision"])
+
+    def test_open_alerts_are_grouped_by_service(self):
+        with tempfile.TemporaryDirectory() as temp_directory:
+            path = Path(temp_directory) / "state.db"
+            alert = sample_alert()
+            alert["relying_parties"] = "service_sensitive"
+            with AlertStore(path) as store:
+                store.insert_alert(alert, source_name="test")
+
+                counts = store.open_alert_counts_by_service("test")
+
+                self.assertEqual(counts["service_sensitive"]["count"], 1)
+                self.assertEqual(counts["service_sensitive"]["highest_severity"], "high")
+                self.assertEqual(counts["service_sensitive"]["latest_alert_id"], "alt_1")
 
     def test_checkpoint_event_deduplication_and_status_history(self):
         with tempfile.TemporaryDirectory() as temp_directory:

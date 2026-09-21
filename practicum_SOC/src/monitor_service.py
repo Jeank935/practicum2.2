@@ -9,7 +9,6 @@ import os
 import time
 from pathlib import Path
 
-from alert_store import AlertStore
 from monitoring import (
     INSTITUTIONAL_SOURCE_UNAVAILABLE,
     build_event_source,
@@ -18,6 +17,7 @@ from monitoring import (
 from normalize_events import NormalizationConfig
 from notifications import build_notification_provider
 from runtime_config import load_env_file, load_json, read_pseudonym_secret
+from store_factory import open_store
 
 
 def parse_args() -> argparse.Namespace:
@@ -76,7 +76,7 @@ def main() -> None:
         print(INSTITUTIONAL_SOURCE_UNAVAILABLE)
         source = build_event_source("csv", args.input_csv)
 
-    with AlertStore(args.state_db) as store:
+    with open_store(args.state_db) as store:
         while True:
             try:
                 result = run_monitor_cycle(

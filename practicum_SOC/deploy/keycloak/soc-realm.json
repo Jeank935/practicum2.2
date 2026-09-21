@@ -1,0 +1,106 @@
+{
+  "realm": "soc",
+  "enabled": true,
+  "displayName": "Acceso a SOC ADFS",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": false,
+  "rememberMe": false,
+  "loginWithEmailAllowed": false,
+  "bruteForceProtected": true,
+  "failureFactor": 5,
+  "waitIncrementSeconds": 60,
+  "maxFailureWaitSeconds": 900,
+  "ssoSessionIdleTimeout": 900,
+  "ssoSessionMaxLifespan": 3600,
+  "accessTokenLifespan": 300,
+  "sslRequired": "external",
+  "roles": {
+    "realm": [
+      {
+        "name": "administrator",
+        "description": "Administración de la plataforma SOC"
+      },
+      {
+        "name": "analyst",
+        "description": "Análisis y atención de casos SOC"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "soc-web",
+      "name": "Plataforma SOC",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "${SOC_OIDC_CLIENT_SECRET}",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "${SOC_PUBLIC_URL}/auth/callback"
+      ],
+      "webOrigins": [
+        "${SOC_PUBLIC_URL}"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "${SOC_PUBLIC_URL}/auth/logged-out"
+      },
+      "protocolMappers": [
+        {
+          "name": "soc-roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "claim.name": "soc_roles",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "soc-admin",
+      "enabled": true,
+      "firstName": "Administrador",
+      "lastName": "SOC",
+      "email": "admin@example.test",
+      "emailVerified": true,
+      "realmRoles": [
+        "administrator"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${SOC_BOOTSTRAP_ADMIN_PASSWORD}",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "soc-analyst",
+      "enabled": true,
+      "firstName": "Analista",
+      "lastName": "SOC",
+      "email": "analyst@example.test",
+      "emailVerified": true,
+      "realmRoles": [
+        "analyst"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${SOC_BOOTSTRAP_ANALYST_PASSWORD}",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

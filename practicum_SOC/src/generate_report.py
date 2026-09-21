@@ -8,7 +8,7 @@ import html
 import json
 from pathlib import Path
 
-from alert_store import AlertStore
+from store_factory import open_store, storage_backend
 
 
 def read_json(path: Path) -> dict:
@@ -71,9 +71,9 @@ def write_bar_chart(
 
 def _state_counts(state_db: Path | None, source_name: str) -> dict:
     empty = {"total": 0, "by_status": {}, "by_severity": {}, "by_rule": {}}
-    if state_db is None or not state_db.is_file():
+    if state_db is None or (storage_backend() == "sqlite" and not state_db.is_file()):
         return empty
-    with AlertStore(state_db) as store:
+    with open_store(state_db) as store:
         return store.alert_counts(source_name)
 
 
@@ -162,7 +162,7 @@ def generate_report(
             [[severity, count] for severity, count in sorted(severity_counts.items())],
         ),
         "",
-        f"Falsos positivos registrados en SQLite: **{false_positives}**.",
+        f"Falsos positivos registrados en el almacenamiento SOC: **{false_positives}**.",
         "",
         "## Perfiles pseudonimizados con más fallos",
         "",

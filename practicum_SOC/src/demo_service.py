@@ -15,6 +15,7 @@ from detect_alerts import (
 from monitoring import cooldown_for_alert
 from notifications import NotificationProvider, deliver_once
 from runtime_config import load_json
+from store_factory import open_store
 
 DEMO_SOURCE_NAME = "csv_demo_mvp"
 
@@ -96,7 +97,7 @@ def run_demo(
     events = evaluation_events(all_events, baseline)
     rows_by_id = _normalized_rows(normalized_path)
 
-    with AlertStore(state_db) as store:
+    with open_store(state_db) as store:
         run_id = store.start_run(DEMO_SOURCE_NAME)
         try:
             inserted_events = _persist_events(store, events, rows_by_id)

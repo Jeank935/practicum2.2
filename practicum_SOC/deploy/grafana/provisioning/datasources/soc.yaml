@@ -1,0 +1,21 @@
+apiVersion: 1
+datasources:
+  - name: SOC PostgreSQL
+    uid: soc-postgres
+    type: grafana-postgresql-datasource
+    access: proxy
+    url: postgres:5432
+    user: soc_grafana
+    isDefault: true
+    editable: false
+    jsonData:
+      database: soc
+      sslmode: disable
+      postgresVersion: 1800
+      timescaledb: false
+      timeInterval: 1m
+      maxOpenConns: 5
+      maxIdleConns: 2
+      connMaxLifetime: 600
+    secureJsonData:
+      password: $SOC_GRAFANA_PASSWORD

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Usuarios — SOC ADFS{% endblock %}
+{% block content %}
+<header class="page-header"><h1>Usuarios de la plataforma</h1>
+<p>Gestiona el acceso de administradores y analistas. Se muestran las cuentas que ya iniciaron sesión.</p></header>
+<section class="panel">
+  <div class="table-wrap"><table>
+    <thead><tr><th>Usuario</th><th>Rol</th><th>Acceso</th><th>Acción</th></tr></thead>
+    <tbody>{% for user in users %}
+      <tr data-user-id="{{ user.user_id }}">
+        <td>{{ user.display_name }}</td>
+        <td><select aria-label="Rol de {{ user.display_name }}">
+          <option value="analyst" {% if user.role == 'analyst' %}selected{% endif %}>Analista</option>
+          <option value="administrator" {% if user.role == 'administrator' %}selected{% endif %}>Administrador</option>
+        </select></td>
+        <td><label><input type="checkbox" {% if user.enabled %}checked{% endif %}> Habilitado</label></td>
+        <td><button class="secondary-button" type="button" data-save-user>Guardar</button></td>
+      </tr>{% endfor %}
+    </tbody>
+  </table></div>
+  <p id="user-message" role="status" aria-live="polite"></p>
+</section>
+<section class="panel">
+  <h2>Actividad reciente</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Fecha</th><th>Operador</th><th>Acción</th><th>Referencia</th><th>Detalle</th></tr></thead>
+    <tbody>{% for entry in audit %}<tr>
+      <td>{{ entry.occurred_at_utc }}</td><td>{{ entry.actor_name }}</td>
+      <td>{{ {'login':'Inicio de sesión','logout':'Cierre de sesión','user_access_changed':'Acceso actualizado','alert_status_changed':'Estado de alerta actualizado','case_viewed':'Caso consultado','configuration_baseline':'Configuración inicial registrada','configuration_change_detected':'Cambio de configuración detectado'}.get(entry.action, entry.action) }}</td>
+      <td>{{ entry.target_id }}</td>
+      <td><details><summary>Ver detalle</summary><pre>{{ entry.details_json }}</pre></details></td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+{% endblock %}

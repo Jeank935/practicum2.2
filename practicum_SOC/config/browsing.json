@@ -1,0 +1,9 @@
+{
+  "default_page_size": 25,
+  "max_page_size": 100,
+  "top_services": 10,
+  "migration_batch_size": 500,
+  "cursor_max_length": 4096,
+  "timezone": "America/Guayaquil",
+  "response_target_ms": 2000
+}

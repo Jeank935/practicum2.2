@@ -6,6 +6,17 @@
   "baseline_dir": "analysis/baseline",
   "exclusions_file": "config/exclusions.json",
   "notification_mode": "soc_inbox",
+  "services_dashboard": {
+    "default_window_days": 0,
+    "available_windows_days": [
+      0,
+      1,
+      7,
+      30
+    ],
+    "top_services_limit": 10,
+    "rare_service_max_events": 10
+  },
   "notification_policy": {
     "immediate_severities": [
       "high",

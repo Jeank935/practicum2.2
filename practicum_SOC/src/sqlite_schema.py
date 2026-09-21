@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import sqlite3
 
+from auth_schema import AUTH_SCHEMA
+from browsing_schema import install_browsing
+
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS checkpoints (
     source_name TEXT PRIMARY KEY,
@@ -118,7 +121,23 @@ def _add_column(connection: sqlite3.Connection, table: str, column: str, definit
 
 
 def ensure_schema(connection: sqlite3.Connection, now_utc: str) -> None:
+    # No ejecutar migraciones ni UPDATE masivos al abrir una conexión de lectura.
+    marker = connection.execute(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'browsing_migrations'"
+    ).fetchone()
+    if (
+        marker
+        and connection.execute(
+            "SELECT version FROM browsing_migrations WHERE version = 1"
+        ).fetchone()
+    ):
+        return
     connection.executescript(SCHEMA_SQL)
+    connection.executescript(AUTH_SCHEMA)
+    _add_column(connection, "alert_status_history", "actor_id", "TEXT NOT NULL DEFAULT 'system'")
+    _add_column(
+        connection, "alert_status_history", "actor_name", "TEXT NOT NULL DEFAULT 'Motor SOC'"
+    )
     _add_column(
         connection,
         "normalized_events",
@@ -127,23 +146,16 @@ def ensure_schema(connection: sqlite3.Connection, now_utc: str) -> None:
     )
     _add_column(connection, "alerts", "source_name", "TEXT NOT NULL DEFAULT 'legacy'")
     _add_column(connection, "alerts", "updated_at_utc", "TEXT")
-    for index_name in (
-        "idx_events_time",
-        "idx_alerts_rule_entity_time",
-        "idx_alerts_status",
-        "idx_events_source_time",
-        "idx_alerts_source_time",
-    ):
-        connection.execute(f"DROP INDEX IF EXISTS {index_name}")
+    connection.execute("DROP INDEX IF EXISTS idx_events_time")
     connection.executescript(
         """
-        CREATE INDEX idx_events_source_time
+        CREATE INDEX IF NOT EXISTS idx_events_source_time
             ON normalized_events(source_name, event_time_utc);
-        CREATE INDEX idx_alerts_source_time
+        CREATE INDEX IF NOT EXISTS idx_alerts_source_time
             ON alerts(source_name, generated_at_utc);
-        CREATE INDEX idx_alerts_rule_entity_time
+        CREATE INDEX IF NOT EXISTS idx_alerts_rule_entity_time
             ON alerts(source_name, rule_id, user_key, client_ip_key, last_seen_local);
-        CREATE INDEX idx_alerts_status
+        CREATE INDEX IF NOT EXISTS idx_alerts_status
             ON alerts(source_name, investigation_status, severity);
         """
     )
@@ -155,4 +167,6 @@ def ensure_schema(connection: sqlite3.Connection, now_utc: str) -> None:
         "UPDATE alerts SET investigation_status = 'investigating' "
         "WHERE investigation_status = 'acknowledged'"
     )
+    connection.commit()
+    install_browsing(connection)
     connection.commit()

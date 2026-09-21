@@ -107,7 +107,7 @@ class GenerateReportTests(unittest.TestCase):
             )
             content = report.read_text(encoding="utf-8")
             self.assertIn("Reporte histórico", content)
-            self.assertIn("Falsos positivos registrados en SQLite: **1**", content)
+            self.assertIn("Falsos positivos registrados en el almacenamiento SOC: **1**", content)
             self.assertIn("Cobertura temporal incompleta", content)
             self.assertIn("usr_synthetic", content)
             self.assertTrue((output / "charts" / "alerts_by_rule.svg").is_file())

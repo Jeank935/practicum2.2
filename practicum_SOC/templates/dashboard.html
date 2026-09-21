@@ -3,14 +3,13 @@
 {% block content %}
 <div data-dashboard-revision="{{ operational.revision }}">
   <section class="hero">
-    <div>
-      <p class="eyebrow">OPERACIONES DE SEGURIDAD</p>
+    <div class="hero-copy">
       <h1>Bandeja SOC ADFS</h1>
       <p>Casos reales priorizados para revisión, investigación y cierre.</p>
     </div>
     <div class="hero-actions">
       <span class="source-badge"><i></i> Fuente activa: {{ source_label }}</span>
-      <span class="refresh-badge" id="refresh-status">Actualización automática · 5 s</span>
+      <span class="refresh-badge" id="refresh-status" role="status" aria-live="polite">Actualización automática · 5 s</span>
     </div>
   </section>
 
@@ -40,7 +39,7 @@
   <section class="dashboard-grid">
     <article class="panel severity-panel">
       <div class="panel-heading">
-        <div><p class="eyebrow">PRIORIZACIÓN</p><h2>Casos abiertos por severidad</h2></div>
+        <h2>Casos abiertos por severidad</h2>
       </div>
       <div class="severity-list">
         {% for severity, label in [('critical','Crítica'),('high','Alta'),('medium','Media'),('low','Baja')] %}
@@ -55,7 +54,7 @@
 
     <article class="panel">
       <div class="panel-heading">
-        <div><p class="eyebrow">FLUJO DE ATENCIÓN</p><h2>Estado de los casos</h2></div>
+        <h2>Estado de los casos</h2>
       </div>
       <dl class="metrics-list">
         <div><dt>Nuevos o notificados</dt><dd>{{ operational.pending_review }}</dd></div>
@@ -68,11 +67,11 @@
 
   <section class="panel table-panel">
     <div class="panel-heading">
-      <div><p class="eyebrow">COLA DE TRABAJO</p><h2>Casos recientes</h2></div>
+      <div><h2>Casos recientes</h2><p>Prioridad ordenada por riesgo y fecha.</p></div>
       <a href="/alerts">Ver todos</a>
     </div>
     {% include "partials/alerts_table.html" %}
   </section>
 </div>
 {% endblock %}
-{% block scripts %}<script src="{{ url_for('static', path='dashboard.js') }}?v=20260727-operational-1"></script>{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', path='dashboard.js') }}?v=20260916-impeccable-1"></script>{% endblock %}

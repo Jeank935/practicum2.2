@@ -5,9 +5,9 @@ from __future__ import annotations
 from datetime import timedelta
 from pathlib import Path
 
-from alert_store import AlertStore
 from event_source import quote_identifier
 from normalize_events import parse_timestamp
+from store_factory import open_store
 
 
 def sample_checkpoint(
@@ -87,7 +87,7 @@ def prepare_live_sample(
         earliest[0],
         earliest[1],
     )
-    with AlertStore(state_db) as store:
+    with open_store(state_db) as store:
         store.save_checkpoint("postgresql_live", cursor_time, cursor_event_id)
 
     return {

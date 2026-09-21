@@ -1,20 +1,29 @@
 {% set rows = alerts if alerts is defined else recent_alerts %}
+{% set severity_labels = {'critical':'Crítica','high':'Alta','medium':'Media','low':'Baja'} %}
+{% set status_labels = {'new':'Nuevo','notified':'Notificado','investigating':'En investigación','resolved':'Resuelto','false_positive':'Falso positivo'} %}
+{% set delivery_labels = {'sent':'Enviada','pending':'Pendiente','failed':'Fallida','skipped':'Omitida'} %}
 <div class="table-wrap">
   <table>
     <thead><tr><th>Severidad</th><th>Regla</th><th>Usuario</th><th>Eventos</th><th>Estado</th><th>Entrega</th><th>Inicio</th></tr></thead>
     <tbody>
     {% for alert in rows %}
       <tr>
-        <td><span class="severity-pill {{ alert.severity }}">{{ alert.severity }}</span></td>
-        <td><a class="table-link" href="/alerts/{{ alert.alert_id }}">{{ alert.rule_name }}</a><small>{{ alert.rule_id }}</small></td>
+        <td><span class="severity-pill {{ alert.severity }}">{{ severity_labels.get(alert.severity, alert.severity) }}</span></td>
+        <td>
+          <a class="table-link" href="/alerts/{{ alert.alert_id }}{% if nav is defined %}?return_to={{ nav.return_to|urlencode }}{% endif %}">{{ alert.rule_name }}</a>
+          <small>{{ alert.rule_id }}</small>
+          {% if alert.has_sensitive_service %}
+          <span class="sensitive-flag {{ alert.service_sensitivity_level }}">Servicio sensible · {{ alert.sensitive_services[0].name }}{% if alert.sensitive_services | length > 1 %} +{{ (alert.sensitive_services | length) - 1 }}{% endif %}</span>
+          {% endif %}
+        </td>
         <td><code>{{ alert.user_key or 'múltiples' }}</code></td>
         <td>{{ alert.event_count }}</td>
-        <td><span class="status-pill">{{ alert.investigation_status }}</span></td>
-        <td>{{ alert.delivery_channel }} · {{ alert.delivery_status }}</td>
+        <td><span class="status-pill status-{{ alert.investigation_status }}">{{ status_labels.get(alert.investigation_status, alert.investigation_status) }}</span></td>
+        <td>{{ alert.delivery_channel }} · {{ delivery_labels.get(alert.delivery_status, alert.delivery_status) }}</td>
         <td>{{ alert.first_seen_local[:16].replace('T', ' ') }}</td>
       </tr>
     {% else %}
-      <tr><td class="empty-state" colspan="7">No hay alertas para los filtros seleccionados.</td></tr>
+      <tr><td class="empty-state" colspan="7"><strong>No se encontraron casos</strong><span>Prueba con otros filtros o vuelve a la lista completa.</span></td></tr>
     {% endfor %}
     </tbody>
   </table>

@@ -1,12 +1,18 @@
 {% extends "base.html" %}
 {% block title %}Alertas · Bandeja SOC{% endblock %}
 {% block content %}
-<section class="page-heading"><div><p class="eyebrow">INVESTIGACIÓN</p><h1>Alertas</h1><p>Filtra y abre la evidencia de cada señal.</p></div></section>
-<form class="filters" method="get">
-  <label>Severidad<select name="severity"><option value="">Todas</option>{% for value in ['critical','high','medium','low'] %}<option value="{{ value }}" {% if filters.severity == value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
-  <label>Estado<select name="status"><option value="">Todos</option>{% for value in ['new','notified','investigating','resolved','false_positive'] %}<option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
-  <label>Regla<input name="rule_id" value="{{ filters.rule_id or '' }}" placeholder="AUTH_..."></label>
-  <button class="secondary-button" type="submit">Aplicar filtros</button>
+<section class="page-heading"><div class="hero-copy"><h1>Alertas</h1><p>Filtra la cola de trabajo y abre la evidencia de cada señal.</p></div></section>
+<form class="filters browse-filters" method="get" data-browse-form>
+  {% set severity_options = [('critical','Crítica'),('high','Alta'),('medium','Media'),('low','Baja')] %}
+  {% set status_options = [('new','Nuevo'),('notified','Notificado'),('investigating','En investigación'),('resolved','Resuelto'),('false_positive','Falso positivo')] %}
+  <label>Severidad<select name="severity"><option value="">Todas</option>{% for value, label in severity_options %}<option value="{{ value }}" {% if filters.severity == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  <label>Estado<select name="status"><option value="">Todos</option>{% for value, label in status_options %}<option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  <label class="filter-rule">Regla<select name="rule_id"><option value="">Todas las reglas</option>{% for rule in rules %}<option value="{{ rule.rule_id }}" {% if filters.rule_id == rule.rule_id %}selected{% endif %}>{{ rule.display_name }} · {{ rule.rule_id }}</option>{% endfor %}</select></label>
+  {% include "partials/browse_filters.html" %}
+  <label>Orden<select name="sort">{% for value, label in [('risk','Mayor riesgo'),('newest','Más recientes'),('oldest','Más antiguos')] %}<option value="{{ value }}" {% if filters.sort == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  <div class="filter-actions"><button class="primary-button" type="submit">Aplicar filtros</button><a class="secondary-button" href="/alerts">Limpiar</a></div>
+  <span role="status" data-browse-status></span>
 </form>
 <section class="panel table-panel">{% include "partials/alerts_table.html" %}</section>
+{% include "partials/pagination.html" %}
 {% endblock %}

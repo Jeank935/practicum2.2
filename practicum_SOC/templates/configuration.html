@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Auditoría de configuración — SOC ADFS{% endblock %}
+{% block content %}
+<header class="page-header"><h1>Auditoría de configuración</h1>
+<p>Registro de los archivos observados en este despliegue. La edición de reglas se incorporará en una etapa posterior.</p></header>
+<section class="panel">
+  <h2>Configuración observada</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Archivo</th><th>Huella SHA-256</th><th>Último cambio detectado (UTC)</th></tr></thead>
+    <tbody>{% for item in snapshots %}<tr>
+      <td>{{ item.filename }}</td><td><code>{{ item.content_hash }}</code></td><td>{{ item.observed_at_utc }}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  <p>Una huella distinta indica un cambio de contenido. Los cambios externos se registran con autor desconocido: la persona que abre esta pantalla no se considera su autora.</p>
+</section>
+<section class="panel">
+  <h2>Cambios de configuración recientes</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Fecha UTC</th><th>Acción</th><th>Archivo</th><th>Observador</th><th>Detalle</th></tr></thead>
+    <tbody>{% for entry in audit if entry.action in ['configuration_baseline', 'configuration_change_detected'] %}
+    <tr><td>{{ entry.occurred_at_utc }}</td><td>{{ 'Registro inicial' if entry.action == 'configuration_baseline' else 'Cambio detectado' }}</td>
+    <td>{{ entry.target_id }}</td><td>{{ entry.actor_name }}</td>
+    <td><details><summary>Ver huellas</summary><pre>{{ entry.details_json }}</pre></details></td></tr>{% else %}
+    <tr><td colspan="5">No hay cambios de configuración en esta página de auditoría.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+{% endblock %}

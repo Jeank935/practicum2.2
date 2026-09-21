@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block title %}Consulta no disponible · SOC{% endblock %}
+{% block content %}
+<section class="panel"><h1>No pudimos mostrar el listado</h1><p role="alert">{{ message }}</p><a class="primary-button" href="{{ retry_path }}">Volver al listado sin filtros</a></section>
+{% endblock %}

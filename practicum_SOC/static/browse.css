@@ -1,0 +1,15 @@
+.browse-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 1rem; }
+.browse-filters label { display: flex; flex-direction: column; gap: .4rem; min-width: 9rem; }
+.browse-filters select { max-width: 24rem; }
+.browse-filters input[type="number"] { max-width: 7rem; }
+.pagination { position: static; inset: auto; z-index: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; padding: 1.25rem 0; margin: 0; border: 0; box-shadow: none; background: transparent; }
+.pagination a { flex-direction: row; min-height: 44px; padding: .6rem 1rem; }
+.browse-filters .checkbox-filter { flex-direction: row; align-items: center; min-height: 44px; }
+.browse-filters input[type="checkbox"] { width: 18px; height: 18px; min-height: 18px; padding: 0; accent-color: var(--blue); }
+.browse-filters .filter-hint { flex-basis: 100%; }
+[data-browse-status] { color: var(--text-muted, #52677a); font-size: .9rem; }
+[aria-busy="true"] button { opacity: .65; cursor: wait; }
+@media (max-width: 640px) {
+  .browse-filters label, .browse-filters select { width: 100%; max-width: 100%; }
+  .browse-filters input, .browse-filters select { font-size: 1rem; }
+}

@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}Servicios · Bandeja SOC{% endblock %}
+{% block content %}
+<div data-services-revision="{{ metrics.revision }}" data-window-days="{{ metrics.window_days }}">
+  <section class="hero">
+    <div class="hero-copy">
+      <h1>Servicios ADFS</h1>
+      <p>Uso observado de aplicaciones para reconocer servicios habituales y actividad poco frecuente.</p>
+    </div>
+    <div class="hero-actions">
+      <span class="source-badge"><i></i> Fuente activa: {{ source_label }}</span>
+      <span class="refresh-badge" id="services-refresh-status" role="status" aria-live="polite">Actualización automática · 5 s</span>
+    </div>
+  </section>
+
+  <form class="filters browse-filters" method="get" data-browse-form>
+    <label for="window-days">Periodo observado
+    <select id="window-days" name="window_days">
+      {% for days in available_windows %}
+      <option value="{{ days }}" {% if metrics.window_days == days %}selected{% endif %}>
+        {% if days == 0 %}Todo el historial{% elif days == 1 %}Último día observado{% else %}Últimos {{ days }} días observados{% endif %}
+      </option>
+      {% endfor %}
+    </select></label>
+    {% include "partials/browse_filters.html" %}
+    <label>Orden<select name="sort">{% for value, label in [('volume','Más eventos'),('failures','Más fallos'),('recent','Actividad reciente'),('service','Identificador A–Z')] %}<option value="{{ value }}" {% if filters.sort == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label class="checkbox-filter"><input type="checkbox" name="sensitive" value="true" {% if filters.sensitive %}checked{% endif %}>Solo sensibles</label>
+    <div class="filter-actions"><button class="primary-button" type="submit">Aplicar filtros</button><a class="secondary-button" href="/services">Limpiar</a></div>
+    <small class="filter-hint">La ventana se calcula desde el evento más reciente, no desde la fecha del equipo.</small>
+    <span role="status" data-browse-status></span>
+  </form>
+
+  <section class="kpi-grid" aria-label="Indicadores de servicios">
+    <article class="kpi">
+      <span>Eventos con servicio</span>
+      <strong>{{ "{:,}".format(metrics.total_events) }}</strong>
+      <small>Autenticaciones asociadas a una aplicación</small>
+    </article>
+    <article class="kpi accent">
+      <span>Servicios observados</span>
+      <strong>{{ metrics.distinct_services }}</strong>
+      <small>Relying parties diferentes</small>
+    </article>
+    <article class="kpi">
+      <span>Usuarios observados</span>
+      <strong>{{ "{:,}".format(metrics.distinct_users) }}</strong>
+      <small>Identificadores pseudonimizados</small>
+    </article>
+    <article class="kpi warning">
+      <span>Servicios sensibles en esta página</span>
+      <strong>{{ metrics.sensitive_service_count }}</strong>
+      <small>{{ metrics.sensitive_services_with_alerts }} con alertas abiertas</small>
+    </article>
+  </section>
+
+  <section class="services-grid">
+    <article class="panel">
+      <div class="panel-heading">
+        <div><h2>Servicios más utilizados</h2><p>Participación sobre el periodo seleccionado.</p></div>
+      </div>
+      {% if metrics.top_services %}
+      <div class="service-bars">
+        {% for service in metrics.top_services %}
+        <div class="service-bar-row">
+          <div class="service-bar-label">
+            <strong class="service-name" title="Identificador técnico: {{ service.relying_party }}">{{ service.display_name | default(service.relying_party, true) }}</strong>
+            <strong>{{ "{:,}".format(service.total_events) }}</strong>
+          </div>
+          <div class="service-bar-track" aria-label="{{ service.share_percent }} por ciento del total">
+            <span style="width: {{ service.bar_percent }}%"></span>
+          </div>
+          <small>{{ service.share_percent }}% del periodo</small>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}<p class="empty-state">Todavía no existen eventos con servicio para esta fuente.</p>{% endif %}
+    </article>
+
+    <article class="panel">
+      <div class="panel-heading">
+        <h2>Clases de autenticación</h2>
+      </div>
+      <dl class="metrics-list">
+        <div><dt>Accesos exitosos</dt><dd>{{ "{:,}".format(metrics.success_count) }}</dd></div>
+        <div><dt>Intentos fallidos</dt><dd>{{ "{:,}".format(metrics.failure_count) }}</dd></div>
+        <div><dt>Bloqueos</dt><dd>{{ "{:,}".format(metrics.lockout_count) }}</dd></div>
+        <div><dt>Último evento</dt><dd>{{ metrics.latest_event_time or 'Sin datos' }}</dd></div>
+      </dl>
+    </article>
+  </section>
+
+  <section class="panel table-panel sensitive-monitoring-panel">
+    <div class="panel-heading">
+      <div>
+        <h2>Servicios sensibles bajo vigilancia</h2>
+        <p>Servicios sensibles de la página actual. El acceso por sí solo no crea un caso.</p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Servicio</th><th>Sensibilidad</th><th>Categoría</th><th>Eventos</th><th>Fallos</th><th>Bloqueos</th><th>Estado</th></tr></thead>
+        <tbody>
+          {% for service in metrics.sensitive_services %}
+          <tr>
+            <td class="sensitive-service-cell">
+              <strong class="service-name" title="Identificador técnico: {{ service.relying_party }}">{{ service.display_name }}</strong>
+              <small>{{ service.sensitivity_reason }}</small>
+            </td>
+            <td><span class="sensitivity-pill {{ service.sensitivity_level }}">{{ 'Alta' if service.sensitivity_level == 'high' else 'Media' }}</span></td>
+            <td>{{ service.sensitivity_category }}</td>
+            <td>{{ "{:,}".format(service.total_events) }}</td>
+            <td>{{ "{:,}".format(service.failure_count) }}</td>
+            <td>{{ "{:,}".format(service.lockout_count) }}</td>
+            <td>
+              {% if service.open_alert_count %}
+              <a class="service-alert-link" href="/alerts/{{ service.latest_alert_id }}?return_to={{ nav.return_to|urlencode }}">{{ service.open_alert_count }} {{ 'alerta abierta' if service.open_alert_count == 1 else 'alertas abiertas' }}</a>
+              {% else %}
+              <span class="service-clear-state">Sin alertas abiertas</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="empty-state"><strong>No hay servicios sensibles observados</strong><span>El catálogo permanece activo para eventos futuros.</span></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel table-panel">
+    <div class="panel-heading">
+      <div><h2>Actividad por servicio</h2><p>Volumen, alcance y resultado por aplicación autenticada.</p></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Servicio</th><th>Eventos</th><th>Usuarios</th><th>IP pseudonimizadas</th><th>Éxitos</th><th>Fallos</th><th>Bloqueos</th><th>Incidencia adversa</th><th>Último evento</th></tr></thead>
+        <tbody>
+          {% for service in metrics.services %}
+          <tr>
+            <td><strong class="service-name" title="Identificador técnico: {{ service.relying_party }}">{{ service.display_name | default(service.relying_party, true) }}</strong></td>
+            <td><strong>{{ "{:,}".format(service.total_events) }}</strong><small>{{ service.share_percent }}%</small></td>
+            <td>{{ "{:,}".format(service.distinct_users) }}</td>
+            <td>{{ "{:,}".format(service.distinct_client_ips) }}</td>
+            <td>{{ "{:,}".format(service.success_count) }}</td>
+            <td>{{ "{:,}".format(service.failure_count) }}</td>
+            <td>{{ "{:,}".format(service.lockout_count) }}</td>
+            <td>{{ service.adverse_rate }}%</td>
+            <td>{{ service.last_seen_utc }}</td>
+          </tr>
+          {% else %}<tr><td colspan="9" class="empty-state">Sin datos para el periodo seleccionado.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+{% include "partials/pagination.html" %}
+</div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', path='services.js') }}?v=20260916-impeccable-1"></script>{% endblock %}

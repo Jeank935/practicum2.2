@@ -242,7 +242,7 @@ def run_monitor_cycle(
             ),
         }
     except Exception as error:
-        LOGGER.exception("La ejecución incremental falló sin exponer credenciales")
+        LOGGER.error("La ejecución incremental falló: %s", type(error).__name__)
         store.finish_run(
             run_id,
             "failed",
