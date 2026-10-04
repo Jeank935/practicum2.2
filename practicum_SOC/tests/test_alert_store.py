@@ -1,13 +1,11 @@
 import json
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
 
-from alert_store import AlertStore  # noqa: E402
+from practicum_soc.repositories.alerts import AlertStore  # noqa: E402
 
 
 def sample_alert(alert_id="alt_1", minute=0):

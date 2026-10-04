@@ -1,5 +1,9 @@
 # Arquitectura del MVP
 
+Nota de mantenimiento: para las rutas Python vigentes y la composición FastAPI,
+consulte [la reorganización del backend](backend_refactor.md). Los nombres planos
+indicados a continuación describen la organización anterior.
+
 ## Flujo
 
 ```text

@@ -6,6 +6,7 @@ __pycache__/
 .env.docker
 .env.*.local
 backups/
+*.dump
 .secrets/
 
 # Los CSV fuente contienen datos operativos reales.
@@ -23,6 +24,8 @@ analysis/state/
 analysis/report/
 analysis/reports/
 analysis/sprint4-ui/
+analysis/sprint5-ui/
+analysis/sprint6-ui/
 *.log
 *.db
 *.sqlite

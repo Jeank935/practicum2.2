@@ -1,13 +1,11 @@
 import json
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
 
-from service_catalog import (  # noqa: E402
+from practicum_soc.services.catalog import (  # noqa: E402
     add_service_display_names,
     add_service_monitoring_context,
     annotate_sensitive_alerts,

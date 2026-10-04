@@ -1,18 +1,16 @@
 import copy
 import csv
 import json
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
 
-from alert_store import AlertStore
-from build_baseline import run_baseline
-from demo_service import run_demo
-from notifications import SocInboxProvider
+from practicum_soc.integrations.notifications import SocInboxProvider
+from practicum_soc.repositories.alerts import AlertStore
+from practicum_soc.services.demo import run_demo
+from practicum_soc.soc.baseline import run_baseline
 
 
 def normalized_row(
@@ -98,12 +96,20 @@ class DemoServiceTests(unittest.TestCase):
             second = run_demo(**arguments)
 
             self.assertEqual(first["evaluation_events"], 4)
+            self.assertEqual(first["historical_events"], 6)
+            self.assertEqual(first["inserted_events"], 6)
             self.assertEqual(first["created_alerts"], 3)
             self.assertEqual(first["delivered_to_soc_inbox"], 2)
             self.assertEqual(second["inserted_events"], 0)
             self.assertEqual(second["created_alerts"], 0)
             with AlertStore(database) as store:
                 self.assertEqual(store.alert_counts("csv_demo_mvp")["total"], 3)
+                self.assertTrue(
+                    all(
+                        item["rule_version_id"] == first["rule_version_id"]
+                        for item in store.list_alerts(source_name="csv_demo_mvp")
+                    )
+                )
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@
   "title": "SOC ADFS · Servicios por minuto",
   "description": "Eventos ponderados por event_count. Los huecos no confirman disponibilidad. Para CSV histórico, seleccione sus fechas originales.",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "editable": false,
   "timezone": "America/Guayaquil",
   "refresh": "1m",
@@ -26,8 +26,8 @@
         "type": "custom",
         "query": "csv_demo_mvp,postgresql_live,csv_demo",
         "current": {
-          "text": "csv_demo_mvp",
-          "value": "csv_demo_mvp"
+          "text": "postgresql_live",
+          "value": "postgresql_live"
         },
         "options": []
       },
@@ -39,7 +39,14 @@
           "type": "grafana-postgresql-datasource",
           "uid": "soc-postgres"
         },
-        "query": "SELECT DISTINCT service AS __text, service AS __value FROM soc_service_minute_dashboard WHERE $__timeFilter(minute_utc) AND source_name = ${source:sqlstring} ORDER BY 1",
+        "query": {
+          "refId": "service",
+          "rawSql": "WITH choices AS (SELECT DISTINCT service AS __text, service AS __value FROM soc_service_minute_dashboard WHERE $__timeFilter(minute_utc) AND source_name = ${source:sqlstring}) SELECT __text, __value FROM choices UNION ALL SELECT 'Sin datos en el periodo', '__no_data' WHERE NOT EXISTS (SELECT 1 FROM choices) ORDER BY 1",
+          "format": "table",
+          "editorMode": "code",
+          "rawQuery": true,
+          "meta": {"textField": "__text", "valueField": "__value"}
+        },
         "refresh": 2,
         "multi": true,
         "includeAll": true,
@@ -73,7 +80,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "soc-postgres"
           },
-          "rawSql": "SELECT minute_utc AS time, service AS metric, SUM(total_events)::double precision AS value FROM soc_service_minute_dashboard WHERE $__timeFilter(minute_utc) AND source_name = ${source:sqlstring} AND service IN (${service:sqlstring}) GROUP BY 1,2 ORDER BY 1",
+          "rawSql": "SELECT minute_utc AS time, service AS metric, SUM(total_events)::double precision AS value FROM soc_service_minute_dashboard WHERE $__timeFilter(minute_utc) AND source_name = ${source:sqlstring} AND service = ANY(ARRAY[${service:sqlstring}]::text[]) GROUP BY 1,2 ORDER BY 1",
           "format": "time_series",
           "editorMode": "code",
           "rawQuery": true
@@ -101,7 +108,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "soc-postgres"
           },
-          "rawSql": "SELECT minute_utc AS time, SUM(success_count)::double precision AS \"Éxitos\", SUM(failure_count)::double precision AS \"Fallos\", SUM(lockout_count)::double precision AS \"Bloqueos\" FROM soc_service_minute_dashboard WHERE $__timeFilter(minute_utc) AND source_name = ${source:sqlstring} AND service IN (${service:sqlstring}) GROUP BY 1 ORDER BY 1",
+          "rawSql": "SELECT minute_utc AS time, SUM(success_count)::double precision AS \"Éxitos\", SUM(failure_count)::double precision AS \"Fallos\", SUM(lockout_count)::double precision AS \"Bloqueos\" FROM soc_service_minute_dashboard WHERE $__timeFilter(minute_utc) AND source_name = ${source:sqlstring} AND service = ANY(ARRAY[${service:sqlstring}]::text[]) GROUP BY 1 ORDER BY 1",
           "format": "time_series",
           "editorMode": "code",
           "rawQuery": true
@@ -129,7 +136,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "soc-postgres"
           },
-          "rawSql": "SELECT minute_utc AS time, 100.0 * SUM(failure_count) / NULLIF(SUM(total_events),0) AS \"Fallos (%)\" FROM soc_service_minute_dashboard WHERE $__timeFilter(minute_utc) AND source_name = ${source:sqlstring} AND service IN (${service:sqlstring}) GROUP BY 1 ORDER BY 1",
+          "rawSql": "SELECT minute_utc AS time, 100.0 * SUM(failure_count) / NULLIF(SUM(total_events),0) AS \"Fallos (%)\" FROM soc_service_minute_dashboard WHERE $__timeFilter(minute_utc) AND source_name = ${source:sqlstring} AND service = ANY(ARRAY[${service:sqlstring}]::text[]) GROUP BY 1 ORDER BY 1",
           "format": "time_series",
           "editorMode": "code",
           "rawQuery": true
@@ -157,7 +164,7 @@
             "type": "grafana-postgresql-datasource",
             "uid": "soc-postgres"
           },
-          "rawSql": "SELECT service AS \"Servicio\", SUM(total_events) AS \"Autenticaciones\", SUM(failure_count) AS \"Fallos\", SUM(lockout_count) AS \"Bloqueos\", MAX(minute_utc) AS \"Último evento\", MAX(updated_at_utc) AS \"Última ingesta\" FROM soc_service_minute_dashboard WHERE $__timeFilter(minute_utc) AND source_name = ${source:sqlstring} AND service IN (${service:sqlstring}) GROUP BY 1 ORDER BY 2 DESC LIMIT 100",
+          "rawSql": "SELECT service AS \"Servicio\", SUM(total_events) AS \"Autenticaciones\", SUM(failure_count) AS \"Fallos\", SUM(lockout_count) AS \"Bloqueos\", MAX(minute_utc) AS \"Último evento\", MAX(updated_at_utc) AS \"Última ingesta\" FROM soc_service_minute_dashboard WHERE $__timeFilter(minute_utc) AND source_name = ${source:sqlstring} AND service = ANY(ARRAY[${service:sqlstring}]::text[]) GROUP BY 1 ORDER BY 2 DESC LIMIT 100",
           "format": "table",
           "editorMode": "code",
           "rawQuery": true

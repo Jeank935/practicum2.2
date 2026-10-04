@@ -1,5 +1,25 @@
 # MVP SOC para autenticaciones ADFS
 
+La organización actual del backend, el mapa de archivos y las pruebas de
+rendimiento están en [la guía de refactorización](docs/backend_refactor.md).
+
+Para consultar meses completos de la fuente institucional sin mover el
+checkpoint en vivo, consulte [análisis histórico por fechas](docs/historical_analysis.md).
+
+El Sprint 6 incorpora [reglas y puntajes versionados](docs/sprint6_rules.md):
+borradores, simulación histórica, publicación auditada y restauración desde
+`/admin/rules`.
+
+El Sprint 5 incorpora **Grafana para oscilaciones por servicio**, con comparación
+histórica, referencia de entrenamiento y enlaces a casos. Consulte
+[activación, métricas y límites](docs/sprint5_grafana.md). No requiere Power BI.
+
+La [vista conjunta de Grafana](http://127.0.0.1:3000/d/adfs-services-oscillations)
+muestra todos los servicios a la vez (`Servicios → All`), prioriza **casos abiertos**
+y conserva el total de alertas del periodo. Incluye última fecha de datos y último
+ciclo del monitor. Si los datos disponibles son anteriores al rango seleccionado,
+no habrá curvas: seleccione las fechas del histórico para demostrarlo.
+
 ## Nuevo: despliegue portable Docker + PostgreSQL SOC + Grafana
 
 El flujo local SQLite continúa funcionando. Para el nuevo despliegue, abra
@@ -16,6 +36,35 @@ Web: http://127.0.0.1:8000 · Grafana: http://127.0.0.1:3000.
 En Grafana seleccione la fuente y las fechas del CSV; se agrupa por minuto.
 El modo live se inicia explícitamente tras configurar fuente y checkpoint;
 los comandos y precauciones están en la guía. No copie credenciales a Git.
+
+Para la bandeja que está ejecutándose con Docker, active también el monitor en
+Docker. Si ya tiene la conexión institucional en `.env`, sincronícela una vez:
+
+```powershell
+.\.venv\Scripts\python.exe tools/setup_docker.py --source-env .env
+docker compose --env-file .env.docker --profile live up -d worker
+docker compose --env-file .env.docker logs --tail 10 worker
+```
+
+Para seguir continuamente los ciclos del monitor:
+
+```powershell
+docker compose --env-file .env.docker logs -f --tail 20 worker
+```
+
+Ctrl+C cierra la visualización de logs, no el monitor. La vista conjunta de
+Grafana refresca cada 30 segundos; el monitor consulta cada 5 segundos. El retraso
+de origen de los logs se añade a esos tiempos: no es monitoreo instantáneo.
+
+La salida debe indicar `"source": "postgresql_live"`. Un ciclo con cero registros
+significa que no hay filas nuevas después del checkpoint; no implica un fallo.
+La bandeja mostrará PostgreSQL live después de un ciclo completado. Prepare la
+línea base en el volumen Docker siguiendo la guía si es el primer arranque.
+Si el monitor pasó a CSV durante una desconexión, restablezca la red autorizada
+y ejecute `docker compose --env-file .env.docker restart worker`.
+`run_monitor.ps1` usa SQLite por defecto; sus resultados no alimentan la bandeja
+Docker, que consulta el PostgreSQL propio del SOC. Para Grafana live seleccione
+`postgresql_live` y un intervalo reciente, por ejemplo las últimas seis horas.
 El acceso ahora requiere OIDC local con Keycloak y los roles administrador y
 analista. Consulte [acceso y usuarios](docs/oidc_local.md). Las identidades de los
 operadores son independientes de los usuarios que aparecen en logs ADFS.
@@ -199,3 +248,6 @@ Documentación adicional:
 - `docs/operations.md`
 - `docs/security.md`
 - `docs/defense_guide.md`
+# Sprint 7: actualización y piloto
+
+La bandeja usa SSE con respaldo por consulta periódica; operaciones, respaldo y piloto se describen en [la guía de Sprint 7](docs/sprint7_live_pilot.md).

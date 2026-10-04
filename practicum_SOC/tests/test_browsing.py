@@ -8,14 +8,14 @@ from fastapi.testclient import TestClient
 from test_alert_store import sample_alert
 from test_postgres_store import event, insert
 
-import web_app
-from alert_store import AlertStore
-from browse_models import AlertQuery, ServiceQuery
-from browse_repository import BrowseRepository
-from browse_service import BrowseService
-from browse_web import navigation, safe_return_path
-from dashboard_service import DashboardService
-from page_cursor import CursorCodec, InvalidCursor
+import practicum_soc.main as web_app
+from practicum_soc.api.navigation import navigation, safe_return_path
+from practicum_soc.core.cursor import CursorCodec, InvalidCursor
+from practicum_soc.repositories.alerts import AlertStore
+from practicum_soc.repositories.browsing import BrowseRepository
+from practicum_soc.schemas.browsing import AlertQuery, ServiceQuery
+from practicum_soc.services.browsing import BrowseService
+from practicum_soc.services.dashboard import DashboardService
 
 SOURCE = "csv_demo_mvp"
 
@@ -139,7 +139,7 @@ def test_revision_changes_only_on_persisted_changes(store):
 
 
 def test_migration_backfills_existing_alerts_idempotently(store):
-    from browsing_schema import install_browsing
+    from practicum_soc.repositories.migrations.browsing import install_browsing
 
     seed_alerts(store, 2)
     with store.connection:
@@ -172,8 +172,8 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setenv("SOC_CURSOR_SECRET", "synthetic-http-secret")
     db = tmp_path / "http.db"
     monkeypatch.setattr(
-        web_app,
-        "service",
+        web_app.app.state,
+        "dashboard_service",
         DashboardService(
             state_db=db,
             analysis_dir=tmp_path / "analysis",
@@ -206,6 +206,60 @@ def test_api_html_openapi_and_return_navigation(client):
     assert schema["paths"]["/api/v1/alerts"]["get"]["responses"]["200"]["content"]
 
 
+def test_services_bars_follow_cursor_and_keep_filters(client):
+    with AlertStore(web_app.app.state.dashboard_service.state_db) as store:
+        for index in range(13):
+            insert(store, event(f"paged-{index}", relying_party=f"app_page_{index}"), source=SOURCE)
+    first = client.get("/services?window_days=7&page_size=3&sort=volume")
+    assert first.status_code == 200
+    first_ids = {row["relying_party"] for row in first.context["metrics"]["top_services"]}
+    assert len(first_ids) == 3
+    assert first.context["metrics"]["top_services"] == first.context["metrics"]["services"]
+    assert 'aria-label="Paginación de servicios más utilizados"' in first.text
+    next_url = first.context["nav"]["next_url"]
+    assert parse_qs(urlsplit(next_url).query)["window_days"] == ["7"]
+    second = client.get(next_url)
+    second_ids = {row["relying_party"] for row in second.context["metrics"]["top_services"]}
+    assert len(second_ids) == 3 and not first_ids & second_ids
+    previous = client.get(second.context["nav"]["previous_url"])
+    assert previous.context["metrics"]["top_services"] == first.context["metrics"]["top_services"]
+    default = client.get("/services")
+    assert default.context["page"]["page_size"] == 10
+    assert len(default.context["metrics"]["top_services"]) == 10
+    assert default.context["page"]["has_next"]
+    assert all(
+        row["bar_percent"] == row["share_percent"]
+        for row in default.context["metrics"]["top_services"]
+    )
+
+
+def test_services_format_display_dates_but_preserve_api_iso(client):
+    timestamp = "2026-09-25T00:59:51+00:00"
+    with AlertStore(web_app.app.state.dashboard_service.state_db) as store:
+        insert(store, event("readable-date", timestamp, relying_party="app_date"), source=SOURCE)
+    response = client.get("/services")
+    assert "Último evento (Loja)" in response.text
+    assert 'datetime="2026-09-25T00:59:51+00:00">24/09/2026 · 19:59:51</time>' in response.text
+    rows = client.get("/api/v1/services").json()["data"]
+    assert (
+        next(row for row in rows if row["relying_party"] == "app_date")["last_seen_utc"]
+        == timestamp
+    )
+
+
+def test_dashboard_menu_redirect_is_configured_and_not_user_supplied(client, monkeypatch):
+    monkeypatch.setenv("SOC_GRAFANA_DASHBOARDS_URL", "http://127.0.0.1:3000/dashboards")
+    response = client.get("/dashboard?url=https://untrusted.example.test", follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"] == "http://127.0.0.1:3000/dashboards"
+    assert (
+        'href="/dashboard" target="_blank" rel="noopener noreferrer"'
+        in client.get("/services").text
+    )
+    monkeypatch.setenv("SOC_GRAFANA_DASHBOARDS_URL", "javascript:alert(1)")
+    assert client.get("/dashboard", follow_redirects=False).status_code == 503
+
+
 @pytest.mark.parametrize(
     "query",
     [
@@ -230,6 +284,45 @@ def test_cursor_errors_and_empty_state(client):
     assert response.status_code == 400 and "No pudimos mostrar" in response.text
     assert client.get("/api/v1/alerts?severity=low").json()["data"] == []
     assert "No se encontraron casos" in client.get("/alerts?severity=low").text
+
+
+def test_grafana_drilldown_preserves_source_service_and_interval(client):
+    from practicum_soc.core.service_identity import service_key
+
+    params = {
+        "source": "csv_demo_mvp",
+        "service_key": service_key("app_test"),
+        "time_from": "2026-03-16T15:00:00Z",
+        "time_to": "2026-03-16T16:00:00Z",
+        "page_size": 3,
+    }
+    response = client.get("/api/v1/alerts", params=params)
+    assert response.status_code == 200
+    assert len(response.json()["data"]) == 3
+    html = client.get("/alerts", params=params)
+    for key in ("source", "service_key", "time_from", "time_to"):
+        assert f'type="hidden" name="{key}"' in html.text
+    assert "Intervalo de Grafana" not in html.text
+    assert "elimina este contexto" not in html.text
+    params["time_from"] = "2026-03-16T15:00:00"
+    assert client.get("/api/v1/alerts", params=params).status_code == 422
+
+
+@pytest.mark.parametrize(
+    "has_previous,has_next", [(False, False), (False, True), (True, False), (True, True)]
+)
+def test_pagination_only_shown_when_navigation_is_needed(has_previous, has_next):
+    html = web_app.app.state.templates.env.get_template("partials/pagination.html").render(
+        page={"page": 1, "page_size": 25, "has_previous": has_previous, "has_next": has_next},
+        nav={
+            "first_url": "/alerts",
+            "previous_url": "/alerts?previous=1",
+            "next_url": "/alerts?next=1",
+        },
+    )
+    assert ('class="pagination"' in html) == (has_previous or has_next)
+    assert ("Anterior" in html) == has_previous
+    assert ("Siguiente" in html) == has_next
 
 
 def test_sensitive_filter_and_global_percentages(store, tmp_path):

@@ -1,10 +1,58 @@
 """Genera secretos locales de Compose sin sobrescribir configuración existente."""
 
+import argparse
 from pathlib import Path
 from secrets import token_hex
 
+SOURCE_KEYS = frozenset(
+    {
+        "SOC_DB_DSN",
+        "SOC_DB_VIEW",
+        "SOC_DB_TIME_COLUMN",
+        "SOC_DB_ID_COLUMN",
+        "SOC_DB_CONNECT_TIMEOUT_SECONDS",
+        "SOC_DB_STATEMENT_TIMEOUT_SECONDS",
+        "SOC_DB_RETRY_ATTEMPTS",
+        "SOC_DB_RETRY_DELAY_SECONDS",
+    }
+)
+
+
+def sync_source_env(target: Path, source: Path) -> None:
+    """Copia únicamente la configuración del origen; conserva secretos del SOC."""
+    values = {}
+    for raw_line in source.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        name, value = line.split("=", 1)
+        name, value = name.strip(), value.strip()
+        if name not in SOURCE_KEYS:
+            continue
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
+        if value:
+            values[name] = value
+    if not values.get("SOC_DB_DSN") or not values.get("SOC_DB_VIEW"):
+        raise ValueError("El archivo de origen necesita SOC_DB_DSN y SOC_DB_VIEW.")
+    # Comillas simples impiden que Compose expanda dólares de las credenciales.
+    replacements = {
+        name: name + "='" + value.replace("'", "\\'") + "'" for name, value in values.items()
+    }
+    lines = []
+    for line in target.read_text(encoding="utf-8").splitlines():
+        name = line.split("=", 1)[0].strip()
+        lines.append(replacements.pop(name, line))
+    lines.extend(replacements.values())
+    target.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--source-env", type=Path, help="Copiar origen UTPL desde este archivo local"
+    )
+    args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     target = root / ".env.docker"
     key_file = root / ".secrets/pseudonym_key.txt"
@@ -41,6 +89,9 @@ def main() -> None:
         with target.open("x", encoding="utf-8") as handle:
             handle.write(template)
         print("Creado .env.docker. No se muestran secretos; no lo comparta ni versione.")
+    if args.source_env:
+        sync_source_env(target, args.source_env)
+        print("Origen institucional configurado en .env.docker; secretos del SOC conservados.")
 
 
 if __name__ == "__main__":

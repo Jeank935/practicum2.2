@@ -1,0 +1,671 @@
+{
+  "uid": "adfs-services-oscillations",
+  "title": "SOC ADFS · Oscilaciones de todos los servicios",
+  "description": "Comparación simultánea de autenticaciones, fallos, bloqueos y casos abiertos. Las alertas son señales para investigación, no ataques confirmados. Use las fechas del histórico si no hay registros recientes.",
+  "schemaVersion": 39,
+  "version": 3,
+  "editable": false,
+  "timezone": "America/Guayaquil",
+  "refresh": "30s",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "30s",
+      "1m",
+      "5m",
+      "15m"
+    ]
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "source",
+        "label": "Fuente",
+        "type": "custom",
+        "query": "csv_demo_mvp,postgresql_live,csv_demo",
+        "current": {
+          "text": "postgresql_live",
+          "value": "postgresql_live"
+        },
+        "options": []
+      },
+      {
+        "name": "service",
+        "label": "Servicios",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "soc-postgres"
+        },
+        "query": {
+          "refId": "service",
+          "rawSql": "WITH choices AS (SELECT DISTINCT service AS __text,service_key AS __value FROM soc_service_analytics WHERE source_name=${source:sqlstring} UNION SELECT DISTINCT service AS __text,service_key AS __value FROM soc_analytics_alerts WHERE source_name=${source:sqlstring}) SELECT __text,__value FROM choices UNION ALL SELECT 'Sin datos para esta fuente','__no_data' WHERE NOT EXISTS (SELECT 1 FROM choices) ORDER BY 1",
+          "format": "table",
+          "editorMode": "code",
+          "rawQuery": true,
+          "meta": {
+            "textField": "__text",
+            "valueField": "__value"
+          }
+        },
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "options": [],
+        "allValue": "'__all'",
+        "current": {
+          "text": "Todos",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "grain",
+        "label": "Agrupación",
+        "type": "custom",
+        "query": "Hora : hour,Día : day",
+        "current": {
+          "text": "Hora",
+          "value": "hour"
+        },
+        "options": []
+      },
+      {
+        "name": "web_url",
+        "label": "URL de la bandeja SOC",
+        "type": "textbox",
+        "query": "http://127.0.0.1:8000",
+        "current": {
+          "text": "http://127.0.0.1:8000",
+          "value": "http://127.0.0.1:8000"
+        },
+        "options": []
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 10,
+      "title": "Últimos datos disponibles en la fuente",
+      "type": "stat",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "soc-postgres"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 5
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "soc-postgres"
+          },
+          "rawSql": "SELECT (EXTRACT(EPOCH FROM MAX(minute_utc))*1000)::double precision AS \"Último evento registrado\" FROM soc_service_minute_dashboard WHERE source_name=${source:sqlstring}",
+          "format": "table",
+          "editorMode": "code",
+          "rawQuery": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Sin datos en el rango",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "spanNulls": false
+          },
+          "unit": "dateTimeAsLocal"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "textMode": "value_and_name",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "vertical",
+        "wideLayout": false,
+        "textSize": {
+          "title": 12,
+          "value": 18
+        }
+      },
+      "description": "Fecha del último minuto con autenticaciones guardadas, independientemente del rango seleccionado. Si es anterior al inicio del rango, las gráficas estarán vacías. No inventa actividad de hoy."
+    },
+    {
+      "id": 11,
+      "title": "Último ciclo del monitor SOC",
+      "type": "stat",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "soc-postgres"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 5
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "soc-postgres"
+          },
+          "rawSql": "SELECT TO_CHAR(COALESCE(h.finished_at,h.started_at) AT TIME ZONE p.timezone,'DD/MM/YYYY HH24:MI:SS') || ' · ' || CASE h.status WHEN 'completed' THEN 'Completado' WHEN 'failed' THEN 'Error' WHEN 'running' THEN 'En ejecución' ELSE h.status END || ' · Nuevos: ' || h.fetched_count::text AS \"Estado del monitor\" FROM soc_monitor_health h CROSS JOIN soc_analytics_policy_view p WHERE h.source_name=${source:sqlstring}",
+          "format": "table",
+          "editorMode": "code",
+          "rawQuery": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Sin datos en el rango",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "textMode": "value_and_name",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "vertical",
+        "wideLayout": false,
+        "textSize": {
+          "title": 12,
+          "value": 18
+        }
+      },
+      "description": "Fecha y resultado del último ciclo (inicio si está en ejecución; final si terminó). Nuevos: 0 es normal cuando no llegan logs. Una fecha detenida requiere revisar los logs del worker."
+    },
+    {
+      "id": 1,
+      "title": "Autenticaciones: todos los servicios",
+      "type": "timeseries",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "soc-postgres"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "soc-postgres"
+          },
+          "rawSql": "SELECT bucket_utc AS time,service AS metric,total_events::double precision AS value FROM soc_services_overview(${source:sqlstring},ARRAY[${service:sqlstring}]::text[],$__timeFrom(),$__timeTo(),${grain:sqlstring}) ORDER BY 1,2",
+          "format": "time_series",
+          "editorMode": "code",
+          "rawQuery": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Sin datos en el rango",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "spanNulls": false
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "max",
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "description": "Una curva por servicio. Seleccione Todos o varios servicios. La leyenda permite aislar curvas. Los huecos no se inventan como ceros."
+    },
+    {
+      "id": 12,
+      "title": "Prioridad: diez servicios con más casos abiertos",
+      "type": "barchart",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "soc-postgres"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 13,
+        "w": 12,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "soc-postgres"
+          },
+          "rawSql": "SELECT service AS \"Servicio\",SUM(open_alert_count)::bigint AS \"Casos abiertos\" FROM soc_services_overview(${source:sqlstring},ARRAY[${service:sqlstring}]::text[],$__timeFrom(),$__timeTo(),${grain:sqlstring}) GROUP BY service,service_key ORDER BY SUM(open_alert_count) DESC,SUM(critical_open_count) DESC,service LIMIT 10",
+          "format": "table",
+          "editorMode": "code",
+          "rawQuery": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Sin datos en el rango",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "custom": {
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "xField": "Servicio",
+        "showValue": "always",
+        "groupWidth": 0.7,
+        "barWidth": 0.9,
+        "legend": {
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "description": "Casos nuevos, notificados y en investigación, dentro del periodo. Se priorizan abiertos; no equivale a servicios atacados. Todos los servicios permanecen en las curvas y la tabla."
+    },
+    {
+      "id": 13,
+      "title": "Casos abiertos por servicio e intervalo",
+      "type": "timeseries",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "soc-postgres"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 13,
+        "w": 12,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "soc-postgres"
+          },
+          "rawSql": "SELECT bucket_utc AS time,service AS metric,open_alert_count::double precision AS value FROM soc_services_overview(${source:sqlstring},ARRAY[${service:sqlstring}]::text[],$__timeFrom(),$__timeTo(),${grain:sqlstring}) ORDER BY 1,2",
+          "format": "time_series",
+          "editorMode": "code",
+          "rawQuery": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Sin datos en el rango",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "spanNulls": false
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "max",
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "description": "Cada caso se ubica al final de su evidencia. Cuenta solo estados abiertos actuales. Puede estar asociado a varios servicios; no sumar servicios como casos únicos."
+    },
+    {
+      "id": 2,
+      "title": "Intentos fallidos por servicio",
+      "type": "timeseries",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "soc-postgres"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 23,
+        "w": 12,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "soc-postgres"
+          },
+          "rawSql": "SELECT bucket_utc AS time,service AS metric,failure_count::double precision AS value FROM soc_services_overview(${source:sqlstring},ARRAY[${service:sqlstring}]::text[],$__timeFrom(),$__timeTo(),${grain:sqlstring}) ORDER BY 1,2",
+          "format": "time_series",
+          "editorMode": "code",
+          "rawQuery": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Sin datos en el rango",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "spanNulls": false
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "max",
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "description": "Una curva por servicio. Seleccione Todos o varios servicios. La leyenda permite aislar curvas. Los huecos no se inventan como ceros."
+    },
+    {
+      "id": 3,
+      "title": "Bloqueos por servicio",
+      "type": "timeseries",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "soc-postgres"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 23,
+        "w": 12,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "soc-postgres"
+          },
+          "rawSql": "SELECT bucket_utc AS time,service AS metric,lockout_count::double precision AS value FROM soc_services_overview(${source:sqlstring},ARRAY[${service:sqlstring}]::text[],$__timeFrom(),$__timeTo(),${grain:sqlstring}) ORDER BY 1,2",
+          "format": "time_series",
+          "editorMode": "code",
+          "rawQuery": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Sin datos en el rango",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "spanNulls": false
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "max",
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "description": "Una curva por servicio. Seleccione Todos o varios servicios. La leyenda permite aislar curvas. Los huecos no se inventan como ceros."
+    },
+    {
+      "id": 4,
+      "title": "Tasa de fallos por servicio",
+      "type": "timeseries",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "soc-postgres"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "soc-postgres"
+          },
+          "rawSql": "SELECT bucket_utc AS time,service AS metric,failure_rate::double precision AS value FROM soc_services_overview(${source:sqlstring},ARRAY[${service:sqlstring}]::text[],$__timeFrom(),$__timeTo(),${grain:sqlstring}) ORDER BY 1,2",
+          "format": "time_series",
+          "editorMode": "code",
+          "rawQuery": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Sin datos en el rango",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "spanNulls": false
+          },
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "description": "Una curva por servicio. Seleccione Todos o varios servicios. La leyenda permite aislar curvas. Los huecos no se inventan como ceros."
+    },
+    {
+      "id": 6,
+      "title": "Servicios para investigar: casos abiertos primero",
+      "type": "table",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "soc-postgres"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 24,
+        "h": 14
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "soc-postgres"
+          },
+          "rawSql": "SELECT service AS \"Servicio\",service_key,SUM(open_alert_count)::bigint AS \"Abiertos\",SUM(critical_open_count)::bigint AS \"Críticos abiertos\",SUM(high_open_count)::bigint AS \"Altos abiertos\",SUM(alert_count)::bigint AS \"Todas las alertas\",SUM(total_events)::bigint AS \"Autenticaciones\",SUM(failure_count)::bigint AS \"Fallos\",SUM(lockout_count)::bigint AS \"Bloqueos\",100.0*SUM(failure_count)/NULLIF(SUM(total_events),0) AS \"Fallos (%)\",MAX(bucket_utc) AS \"Último intervalo\" FROM soc_services_overview(${source:sqlstring},ARRAY[${service:sqlstring}]::text[],$__timeFrom(),$__timeTo(),${grain:sqlstring}) GROUP BY service,service_key ORDER BY SUM(open_alert_count) DESC,SUM(critical_open_count) DESC,SUM(failure_count) DESC,service",
+          "format": "table",
+          "editorMode": "code",
+          "rawQuery": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Sin datos en el rango",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "spanNulls": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "service_key"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Servicio"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 330
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Revisar casos en el SOC",
+                    "url": "${web_url}/alerts?source=${source:percentencode}&service_key=${__data.fields.service_key}&time_from=${__from}&time_to=${__to}",
+                    "targetBlank": true
+                  },
+                  {
+                    "title": "Detalle individual y línea base",
+                    "url": "/d/adfs-service-detail?var-source=${source:percentencode}&var-service=${__data.fields.service_key}&var-grain=${grain:percentencode}&from=${__from}&to=${__to}",
+                    "targetBlank": false
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Fallos (%)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Último intervalo"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "dateTimeAsLocal"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      },
+      "description": "Incluye todos los servicios del periodo, sin top oculto. Todas las alertas incluye cerradas y falsos positivos; Abiertos los excluye. Pulse el nombre para revisar casos o la comparación individual. Los distintos de usuarios/IP no se suman entre intervalos."
+    }
+  ],
+  "links": [
+    {
+      "title": "Servicios por minuto",
+      "type": "link",
+      "url": "/d/adfs-services-minute?var-source=${source:percentencode}&from=${__from}&to=${__to}",
+      "targetBlank": false
+    }
+  ]
+}

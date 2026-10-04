@@ -6,12 +6,12 @@ from statistics import median
 from test_alert_store import sample_alert
 from test_postgres_store import pg_store  # noqa: F401
 
-from alert_store import AlertStore
-from browse_models import AlertQuery, ServiceQuery
-from browse_repository import BrowseRepository
-from browsing_config import SETTINGS
-from page_cursor import CursorCodec
-from postgres_store import postgres_sql
+from practicum_soc.core.browsing_config import SETTINGS
+from practicum_soc.core.cursor import CursorCodec
+from practicum_soc.repositories.alerts import AlertStore
+from practicum_soc.repositories.browsing import BrowseRepository
+from practicum_soc.repositories.postgres import postgres_sql
+from practicum_soc.schemas.browsing import AlertQuery, ServiceQuery
 
 
 def measure(store, backend):
@@ -59,7 +59,8 @@ def measure(store, backend):
         store.connection.execute("ANALYZE normalized_events")
     repo = BrowseRepository(store)
     query = AlertQuery()
-    service_query = ServiceQuery()
+    # Mantiene el tamaño histórico del benchmark, independiente del predeterminado de la UI.
+    service_query = ServiceQuery(page_size=SETTINGS.default_page_size)
     codec = CursorCodec("synthetic-load-test", {})
     scope, params, _ = repo.event_scope(service_query, "load_test", [])
     results = {}

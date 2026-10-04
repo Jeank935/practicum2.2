@@ -1,15 +1,13 @@
 import copy
 import json
-import sys
 import unittest
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
 
-from detect_alerts import BaselineContext, Event, detect_alerts, evaluation_events
+from practicum_soc.soc.detection import BaselineContext, Event, detect_alerts, evaluation_events
 
 
 def mvp_config() -> dict:

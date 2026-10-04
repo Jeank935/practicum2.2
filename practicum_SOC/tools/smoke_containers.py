@@ -78,8 +78,9 @@ def main() -> None:
         SOC_IDP_PORT=idp_port,
         SOC_SMOKE_WEB_URL=web_url,
         SOC_SMOKE_IDP_URL=idp_url,
+        SOC_SMOKE_GRAFANA_URL=grafana_url,
         SOC_SMOKE_MUTATIONS="yes",
-        SOC_SMOKE_SCREENSHOTS=str(ROOT / "analysis" / "sprint4-ui"),
+        SOC_SMOKE_SCREENSHOTS=str(ROOT / "analysis" / "sprint5-ui"),
         SOC_BROWSER_CHANNEL=browser_channel,
     )
     base = ["docker", "compose", "--env-file", ".env.docker.example", "-p", project]
@@ -105,7 +106,7 @@ def main() -> None:
         expect_denied(build_opener(), web_url + "/alerts", 401)
         seed = """
 from pathlib import Path
-from store_factory import open_store
+from practicum_soc.repositories.factory import open_store
 with open_store(Path('unused.db')) as store:
     for index in range(32):
         alert = dict(alert_id=f'synthetic_{index:02}', rule_id='AUTH_TEST',
@@ -120,6 +121,24 @@ with open_store(Path('unused.db')) as store:
         assert store.insert_event(event, event['event_time_utc'], str(index), True, 'csv_demo_mvp')
 """
         compose("exec", "-T", "web", "python", "-c", seed)
+        analytics_seed = """
+from pathlib import Path
+from practicum_soc.repositories.factory import open_store
+with open_store(Path('unused.db')) as store:
+    for day in (14,15,16,17,18,19,20,21,22):
+        for hour in range(8,20):
+            item = dict(source_event_id=f'history-{day}-{hour}',
+                        event_time_utc=f'2026-03-{day:02}T{hour:02}:00:00-05:00',
+                        event_class='failure' if hour==12 else 'success',
+                        event_count=(100 if day<21 else 180),
+                        relying_party='app_00',user_key='usr_synthetic',client_ip_key='ip_synthetic')
+            store.insert_event(item,item['event_time_utc'],item['source_event_id'],True,'csv_demo_mvp')
+    item=dict(alert_id='synthetic_oscillation',rule_id='AUTH_TEST',rule_name='Oscilación sintética',
+              severity='high',risk_score=75,first_seen_local='2026-03-21T12:00:00-05:00',
+              last_seen_local='2026-03-21T12:15:00-05:00',relying_parties='app_00',description='Caso de prueba')
+    store.insert_alert(item,source_name='csv_demo_mvp')
+"""
+        compose("exec", "-T", "web", "python", "-c", analytics_seed)
         subprocess.run(
             [node, str(ROOT / "tools/verify_oidc_browser.cjs")],
             env=environment,
@@ -133,9 +152,19 @@ with open_store(Path('unused.db')) as store:
         assert len(dashboard["dashboard"]["panels"]) == 4
         datasource = wait_json(grafana_url + "/api/datasources/uid/soc-postgres/health", auth)
         assert datasource["status"] == "OK"
+        oscillations = wait_json(
+            grafana_url + "/api/dashboards/uid/adfs-services-oscillations", auth
+        )
+        assert len(oscillations["dashboard"]["panels"]) == 6
+        subprocess.run(
+            [node, str(ROOT / "tools/verify_grafana_browser.cjs")],
+            env=environment,
+            check=True,
+            timeout=120,
+        )
         code = """
 from pathlib import Path
-from store_factory import open_store
+from practicum_soc.repositories.factory import open_store
 with open_store(Path('unused.db')) as store:
     event = dict(source_event_id='synthetic', event_time_utc='2026-03-16T15:00:25+00:00',
                  event_class='failure', event_count=6, relying_party='synthetic-service',
@@ -165,6 +194,47 @@ with open_store(Path('unused.db')) as store:
             result = json.load(response)["results"]["A"]
         assert not result.get("error"), "Grafana devolvió un error de consulta"
         assert result["frames"][0]["data"]["values"][0] == [6]
+        compose(
+            "exec",
+            "-T",
+            "postgres",
+            "pg_dump",
+            "-U",
+            "postgres",
+            "-d",
+            "soc",
+            "-Fc",
+            "-f",
+            "/tmp/soc-test.dump",
+        )
+        compose("exec", "-T", "postgres", "createdb", "-U", "postgres", "soc_restore_test")
+        compose(
+            "exec",
+            "-T",
+            "postgres",
+            "pg_restore",
+            "-U",
+            "postgres",
+            "-d",
+            "soc_restore_test",
+            "--no-owner",
+            "/tmp/soc-test.dump",
+        )
+        restored = compose(
+            "exec",
+            "-T",
+            "postgres",
+            "psql",
+            "-U",
+            "postgres",
+            "-d",
+            "soc_restore_test",
+            "-Atc",
+            "SELECT COUNT(*) FROM alerts",
+            capture=True,
+        )
+        assert int(restored.stdout.strip()) >= 32
+        print("Respaldo PostgreSQL restaurado en una base de prueba independiente.")
         print("SMOKE OK: OIDC Keycloak, roles, revocación, PostgreSQL, Grafana y deduplicación.")
     finally:
         # Solo el proyecto aleatorio de esta prueba. Nunca adfs-soc del usuario.

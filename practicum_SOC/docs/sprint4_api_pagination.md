@@ -11,7 +11,7 @@ de este sprint pertenecen exclusivamente al almacenamiento del SOC.
 - Ordenar por riesgo, más recientes o más antiguos.
 - Servicios: combinar periodo observado, fechas, servicio y sensibilidad;
   ordenar por volumen, fallos, actividad reciente o identificador técnico.
-- 25 elementos por defecto; entre 1 y 100 por página.
+- 25 alertas o 10 servicios por defecto; entre 1 y 100 por página.
 - Anterior, Siguiente y Primera sin cargar toda la cola en Python.
 - Abrir un caso y usar «Volver al listado» conserva filtros, tamaño, orden y cursor.
 - Se anuncian carga, ausencia de resultados y errores; la navegación funciona sin JavaScript.
@@ -19,6 +19,17 @@ de este sprint pertenecen exclusivamente al almacenamiento del SOC.
   posteriores o al editar filtros avisa de cambios sin interrumpir la navegación.
 
 Las fechas se interpretan en America/Guayaquil: «Hasta» incluye todo ese día.
+En Servicios, el último evento se muestra como `24/09/2026 · 19:59:51`, hora
+de Loja. El valor ISO/UTC se conserva en almacenamiento, API y atributo `datetime`.
+Las barras y la tabla muestran la misma página; Anterior/Siguiente también están
+junto a las barras. Su escala y sus porcentajes usan el total del periodo filtrado,
+para no alterar la comparación al avanzar de página. Se reutiliza el cursor firmado.
+
+El menú **Dashboard** abre el listado de dashboards Grafana en otra pestaña.
+`GET /dashboard` exige la sesión SOC y redirige a un destino administrado, nunca
+a una URL recibida del navegador. Grafana mantiene su propio control de acceso.
+Para otro dominio o puerto, configurar `SOC_GRAFANA_DASHBOARDS_URL`; el valor
+local está en `config/interface.json` y Docker adapta el puerto publicado.
 En alertas se filtra la fecha inicial del patrón, no la fecha en que se importó.
 En Servicios, el periodo de últimos días parte del último evento disponible,
 no del reloj del equipo; si se indican fechas se aplica la intersección.
@@ -83,6 +94,8 @@ constante para millones de eventos. Grafana conserva su agregado por minuto.
 | src/api_errors.py | Formato común de errores |
 | src/browsing_schema.py | Migración e índices del SOC y revisiones incrementales |
 | src/web_app.py | Rutas HTML delgadas |
+| src/presentation.py | Fechas legibles en hora de Loja y validación del enlace a Grafana |
+| config/interface.json | Destino predeterminado del menú Dashboard |
 | templates/partials/browse_filters.html | Controles compartidos |
 | templates/partials/pagination.html | Navegación de páginas |
 | templates/browse_error.html | Recuperación ante consulta inválida o indisponible |

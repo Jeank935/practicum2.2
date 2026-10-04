@@ -1,38 +1,38 @@
 {% extends "base.html" %}
 {% block title %}Resumen · Bandeja SOC{% endblock %}
 {% block content %}
-<div data-dashboard-revision="{{ operational.revision }}">
+<div data-dashboard-revision="{{ operational.revision }}" data-fallback-seconds="{{ live_updates.browser_fallback_seconds }}" data-reconnect-seconds="{{ live_updates.browser_reconnect_seconds }}">
   <section class="hero">
     <div class="hero-copy">
       <h1>Bandeja SOC ADFS</h1>
       <p>Casos reales priorizados para revisión, investigación y cierre.</p>
     </div>
     <div class="hero-actions">
-      <span class="source-badge"><i></i> Fuente activa: {{ source_label }}</span>
-      <span class="refresh-badge" id="refresh-status" role="status" aria-live="polite">Actualización automática · 5 s</span>
+      <span class="source-badge"><i></i> Fuente activa: <span data-source-label>{{ source_label }}</span></span>
+      <span class="refresh-badge" id="refresh-status" role="status" aria-live="polite">Conectando actualizaciones…</span>
     </div>
   </section>
 
   <section class="kpi-grid" aria-label="Indicadores operativos">
     <article class="kpi warning">
       <span>Pendientes de revisión</span>
-      <strong>{{ operational.pending_review }}</strong>
+      <strong data-summary="pending_review">{{ operational.pending_review }}</strong>
       <small>Nuevos y notificados</small>
     </article>
     <article class="kpi">
       <span>En investigación</span>
-      <strong>{{ operational.investigating }}</strong>
+      <strong data-summary="investigating">{{ operational.investigating }}</strong>
       <small>Atención activa del analista</small>
     </article>
     <article class="kpi critical">
       <span>Críticas abiertas</span>
-      <strong>{{ operational.open_by_severity.get('critical', 0) }}</strong>
+      <strong data-summary="critical">{{ operational.open_by_severity.get('critical', 0) }}</strong>
       <small>Prioridad inmediata</small>
     </article>
     <article class="kpi accent">
       <span>Casos cerrados</span>
-      <strong>{{ operational.resolved + operational.false_positive }}</strong>
-      <small>{{ operational.resolved }} resueltos · {{ operational.false_positive }} falsos positivos</small>
+      <strong data-summary="closed">{{ operational.resolved + operational.false_positive }}</strong>
+      <small data-summary="closed-detail">{{ operational.resolved }} resueltos · {{ operational.false_positive }} falsos positivos</small>
     </article>
   </section>
 
@@ -46,7 +46,7 @@
         <div>
           <span class="severity-dot {{ severity }}"></span>
           <span>{{ label }}</span>
-          <strong>{{ operational.open_by_severity.get(severity, 0) }}</strong>
+          <strong data-severity="{{ severity }}">{{ operational.open_by_severity.get(severity, 0) }}</strong>
         </div>
         {% endfor %}
       </div>
@@ -57,10 +57,10 @@
         <h2>Estado de los casos</h2>
       </div>
       <dl class="metrics-list">
-        <div><dt>Nuevos o notificados</dt><dd>{{ operational.pending_review }}</dd></div>
-        <div><dt>En investigación</dt><dd>{{ operational.investigating }}</dd></div>
-        <div><dt>Resueltos</dt><dd>{{ operational.resolved }}</dd></div>
-        <div><dt>Falsos positivos</dt><dd>{{ operational.false_positive }}</dd></div>
+        <div><dt>Nuevos o notificados</dt><dd data-state="pending_review">{{ operational.pending_review }}</dd></div>
+        <div><dt>En investigación</dt><dd data-state="investigating">{{ operational.investigating }}</dd></div>
+        <div><dt>Resueltos</dt><dd data-state="resolved">{{ operational.resolved }}</dd></div>
+        <div><dt>Falsos positivos</dt><dd data-state="false_positive">{{ operational.false_positive }}</dd></div>
       </dl>
     </article>
   </section>
@@ -70,8 +70,8 @@
       <div><h2>Casos recientes</h2><p>Prioridad ordenada por riesgo y fecha.</p></div>
       <a href="/alerts">Ver todos</a>
     </div>
-    {% include "partials/alerts_table.html" %}
+    <div data-recent-alerts>{% include "partials/alerts_table.html" %}</div>
   </section>
 </div>
 {% endblock %}
-{% block scripts %}<script src="{{ url_for('static', path='dashboard.js') }}?v=20260916-impeccable-1"></script>{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', path='dashboard.js') }}?v=20260924-live-1"></script>{% endblock %}

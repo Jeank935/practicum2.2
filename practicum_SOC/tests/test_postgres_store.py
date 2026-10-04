@@ -12,15 +12,15 @@ from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict
 from test_alert_store import sample_alert
 
-import postgres_store
-from auth_config import AuthSettings
-from auth_store import AuthStore
-from configuration_audit import observe_configuration
-from notifications import SocInboxProvider, deliver_once
-from postgres_schema import install_schema
-from postgres_store import PostgresAlertStore, postgres_sql
-from rate_limits import consume
-from store_factory import open_store
+import practicum_soc.repositories.postgres as postgres_store
+from practicum_soc.core.auth_config import AuthSettings
+from practicum_soc.core.rate_limits import consume
+from practicum_soc.integrations.notifications import SocInboxProvider, deliver_once
+from practicum_soc.repositories.auth import AuthStore
+from practicum_soc.repositories.factory import open_store
+from practicum_soc.repositories.migrations.postgres import install_schema
+from practicum_soc.repositories.postgres import PostgresAlertStore, postgres_sql
+from practicum_soc.services.configuration_audit import observe_configuration
 
 
 def test_postgres_rate_limits_are_atomic_between_connections(pg_store):
@@ -140,9 +140,9 @@ def event(identifier="e1", time="2026-03-16T15:00:45+00:00", **changes):
 
 
 def test_postgres_keyset_browsing_and_service_aggregation(pg_store):
-    from browse_models import AlertQuery, ServiceQuery
-    from browse_repository import BrowseRepository
-    from page_cursor import CursorCodec
+    from practicum_soc.core.cursor import CursorCodec
+    from practicum_soc.repositories.browsing import BrowseRepository
+    from practicum_soc.schemas.browsing import AlertQuery, ServiceQuery
 
     store, _, _ = pg_store
     for index in range(9):
@@ -200,6 +200,24 @@ def test_postgres_metrics_atomic_dedup_late_event_and_source_isolation(pg_store)
         ).fetchone()["n"]
         == 6
     )
+
+
+def test_postgres_bulk_ingestion_keeps_metrics_and_duplicates_atomic(pg_store):
+    store, _, _ = pg_store
+    items = [event("bulk1"), event("bulk2", event_class="success")]
+    batch = [(item, item["event_time_utc"], item["source_event_id"], True) for item in items]
+    assert store.insert_events(batch, "test") == 2
+    assert store.insert_events(batch, "test") == 0
+    rows = list(
+        store.connection.iterate(
+            "SELECT source_event_id FROM normalized_events WHERE source_name=?", ("test",), 1
+        )
+    )
+    assert len(rows) == 2
+    row = store.connection.execute(
+        "SELECT SUM(total_events) AS n FROM service_minute_metrics WHERE source_name=?", ("test",)
+    ).fetchone()
+    assert row["n"] == 4
 
 
 def test_postgres_case_persistence_cooldown_delivery_and_checkpoint(pg_store):

@@ -1,0 +1,6 @@
+{
+  "maximum_preview_events": 10000,
+  "maximum_preview_days": 30,
+  "preview_valid_minutes": 60,
+  "history_page_limit": 50
+}

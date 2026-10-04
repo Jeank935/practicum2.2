@@ -3,6 +3,7 @@
 {% block content %}
 <section class="page-heading"><div class="hero-copy"><h1>Alertas</h1><p>Filtra la cola de trabajo y abre la evidencia de cada señal.</p></div></section>
 <form class="filters browse-filters" method="get" data-browse-form>
+  {% for key in ['source','service_key','time_from','time_to'] %}{% if filters[key] %}<input type="hidden" name="{{ key }}" value="{{ filters[key] }}">{% endif %}{% endfor %}
   {% set severity_options = [('critical','Crítica'),('high','Alta'),('medium','Media'),('low','Baja')] %}
   {% set status_options = [('new','Nuevo'),('notified','Notificado'),('investigating','En investigación'),('resolved','Resuelto'),('false_positive','Falso positivo')] %}
   <label>Severidad<select name="severity"><option value="">Todas</option>{% for value, label in severity_options %}<option value="{{ value }}" {% if filters.severity == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>

@@ -1,5 +1,5 @@
-const servicesDashboard = document.querySelector("[data-services-revision]");
-const servicesRefreshStatus = document.querySelector("#services-refresh-status");
+let servicesDashboard = document.querySelector("[data-services-revision]");
+let servicesRefreshStatus = document.querySelector("#services-refresh-status");
 const servicesRefreshIntervalMilliseconds = 5000;
 let currentServicesRevision = servicesDashboard?.dataset.servicesRevision;
 let servicesRefreshInProgress = false;
@@ -22,7 +22,17 @@ async function refreshWhenServicesChange() {
         return;
       }
       servicesRefreshStatus.textContent = "Nueva actividad detectada";
-      window.location.reload();
+      const updated = await fetch(window.location.href, { cache: "no-store" });
+      if (redirectWhenSessionExpired(updated)) return;
+      if (!updated.ok) throw new Error("Servicios no disponibles");
+      const page = new DOMParser().parseFromString(await updated.text(), "text/html");
+      const replacement = page.querySelector("[data-services-revision]");
+      if (!replacement) throw new Error("Vista incompleta");
+      servicesDashboard.replaceWith(replacement);
+      servicesDashboard = replacement;
+      servicesRefreshStatus = document.querySelector("#services-refresh-status");
+      currentServicesRevision = replacement.dataset.servicesRevision;
+      servicesRefreshStatus.textContent = "Servicios actualizados";
       return;
     }
     servicesRefreshStatus.textContent = "Actualizado · sin cambios";

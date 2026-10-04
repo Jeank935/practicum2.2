@@ -1,0 +1,469 @@
+{
+  "uid": "adfs-service-detail",
+  "title": "SOC ADFS · Detalle de un servicio",
+  "description": "Analítica local de solo lectura. Intervalos por hora/día de Loja. Máximo 31 días por consulta. Los huecos indican ausencia de datos, no disponibilidad confirmada. No modifica reglas ni crea alertas.",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": false,
+  "timezone": "America/Guayaquil",
+  "refresh": "30s",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "1m",
+      "5m",
+      "15m"
+    ]
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "source",
+        "label": "Fuente",
+        "type": "custom",
+        "query": "csv_demo_mvp,postgresql_live,csv_demo",
+        "current": {
+          "text": "postgresql_live",
+          "value": "postgresql_live"
+        },
+        "options": []
+      },
+      {
+        "name": "service",
+        "label": "Servicio",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "soc-postgres"
+        },
+        "query": {
+          "refId": "service",
+          "rawSql": "WITH choices AS (SELECT DISTINCT service AS __text,service_key AS __value FROM soc_service_analytics WHERE source_name=${source:sqlstring}) SELECT __text, __value FROM choices UNION ALL SELECT 'Sin datos para esta fuente', '__no_data' WHERE NOT EXISTS (SELECT 1 FROM choices) ORDER BY 1",
+          "format": "table",
+          "editorMode": "code",
+          "rawQuery": true,
+          "meta": {
+            "textField": "__text",
+            "valueField": "__value"
+          }
+        },
+        "refresh": 1,
+        "multi": false,
+        "includeAll": false,
+        "options": []
+      },
+      {
+        "name": "grain",
+        "label": "Agrupación",
+        "type": "custom",
+        "query": "Hora : hour,Día : day",
+        "current": {
+          "text": "Hora",
+          "value": "hour"
+        },
+        "options": []
+      },
+      {
+        "name": "web_url",
+        "label": "URL de la bandeja SOC",
+        "type": "textbox",
+        "query": "http://127.0.0.1:8000",
+        "current": {
+          "text": "http://127.0.0.1:8000",
+          "value": "http://127.0.0.1:8000"
+        },
+        "options": []
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Autenticaciones: actual, periodo anterior y línea base",
+      "type": "timeseries",
+      "description": "Seleccione un punto para revisar sus casos. Sin referencia significa datos insuficientes; un pico no confirma un ataque.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "soc-postgres"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "soc-postgres"
+          },
+          "rawSql": "SELECT bucket_utc AS time,total_events::double precision AS \"Actual\",previous_events::double precision AS \"Periodo anterior\",baseline_expected::double precision AS \"Línea base\",(EXTRACT(epoch FROM bucket_end)*1000)::bigint AS end_ms FROM soc_service_oscillations(${source:sqlstring},(ARRAY[${service:sqlstring}]::text[])[1],$__timeFrom(),$__timeTo(),${grain:sqlstring}) ORDER BY bucket_utc",
+          "format": "time_series",
+          "editorMode": "code",
+          "rawQuery": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Sin referencia",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "spanNulls": false
+          },
+          "links": [
+            {
+              "title": "Revisar casos de este intervalo",
+              "url": "${web_url}/alerts?source=${source:percentencode}&service_key=${service:percentencode}&time_from=${__value.time}&time_to=${__data.fields.end_ms}",
+              "targetBlank": true
+            }
+          ]
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "end_ms"
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "viz": true,
+                  "legend": true,
+                  "tooltip": true
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Éxitos, fallos y bloqueos",
+      "type": "timeseries",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "soc-postgres"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "soc-postgres"
+          },
+          "rawSql": "SELECT bucket_utc AS time,success_count::double precision AS \"Éxitos\",failure_count::double precision AS \"Fallos\",lockout_count::double precision AS \"Bloqueos\" FROM soc_service_oscillations(${source:sqlstring},(ARRAY[${service:sqlstring}]::text[])[1],$__timeFrom(),$__timeTo(),${grain:sqlstring}) ORDER BY bucket_utc",
+          "format": "time_series",
+          "editorMode": "code",
+          "rawQuery": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Sin referencia",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Usuarios e IP distintos por intervalo",
+      "type": "timeseries",
+      "description": "Recuentos exactos por hora/día; no sumar distintos entre intervalos.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "soc-postgres"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "soc-postgres"
+          },
+          "rawSql": "SELECT bucket_utc AS time,distinct_users::double precision AS \"Usuarios\",distinct_ips::double precision AS \"IP\" FROM soc_service_oscillations(${source:sqlstring},(ARRAY[${service:sqlstring}]::text[])[1],$__timeFrom(),$__timeTo(),${grain:sqlstring}) ORDER BY bucket_utc",
+          "format": "time_series",
+          "editorMode": "code",
+          "rawQuery": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Sin referencia",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Tasa de fallos",
+      "type": "timeseries",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "soc-postgres"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "soc-postgres"
+          },
+          "rawSql": "SELECT bucket_utc AS time,failure_rate::double precision AS \"Fallos (%)\" FROM soc_service_oscillations(${source:sqlstring},(ARRAY[${service:sqlstring}]::text[])[1],$__timeFrom(),$__timeTo(),${grain:sqlstring}) ORDER BY bucket_utc",
+          "format": "time_series",
+          "editorMode": "code",
+          "rawQuery": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Sin referencia",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "spanNulls": false
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Desviación de volumen respecto de la línea base",
+      "type": "timeseries",
+      "description": "Promedio del entrenamiento configurado. Horas comparadas con la misma hora local. Solo días completos y anteriores al intervalo seleccionado.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "soc-postgres"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "soc-postgres"
+          },
+          "rawSql": "SELECT bucket_utc AS time,deviation_percent::double precision AS \"Desviación (%)\" FROM soc_service_oscillations(${source:sqlstring},(ARRAY[${service:sqlstring}]::text[])[1],$__timeFrom(),$__timeTo(),${grain:sqlstring}) ORDER BY bucket_utc",
+          "format": "time_series",
+          "editorMode": "code",
+          "rawQuery": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Sin referencia",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "spanNulls": false
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Detalle por intervalo y casos asociados",
+      "type": "table",
+      "description": "Pulse Casos para abrir la bandeja con la fuente, servicio e intervalo exactos. Un caso que cruza intervalos puede aparecer en varios; no sumar esas cifras. Los periodos en curso son parciales.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "soc-postgres"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 24,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "soc-postgres"
+          },
+          "rawSql": "SELECT alert_count AS \"Casos\",bucket_utc AS \"Inicio\",total_events AS \"Autenticaciones\",success_count AS \"Éxitos\",failure_count AS \"Fallos\",lockout_count AS \"Bloqueos\",distinct_users AS \"Usuarios distintos\",distinct_ips AS \"IP distintas\",failure_rate AS \"Fallos (%)\",previous_events AS \"Periodo anterior\",change_percent AS \"Cambio (%)\",baseline_expected AS \"Base esperada\",baseline_samples AS \"Muestras de base\",deviation_percent AS \"Desviación (%)\",open_alert_count AS \"Abiertos\",partial_bucket AS \"Periodo en curso\",(EXTRACT(epoch FROM bucket_utc)*1000)::bigint AS start_ms,(EXTRACT(epoch FROM bucket_end)*1000)::bigint AS end_ms FROM soc_service_oscillations(${source:sqlstring},(ARRAY[${service:sqlstring}]::text[])[1],$__timeFrom(),$__timeTo(),${grain:sqlstring}) ORDER BY bucket_utc",
+          "format": "table",
+          "editorMode": "code",
+          "rawQuery": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Sin referencia",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "spanNulls": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "start_ms"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "end_ms"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Casos"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Ver casos (${__value.raw})",
+                    "url": "${web_url}/alerts?source=${source:percentencode}&service_key=${service:percentencode}&time_from=${__data.fields.start_ms}&time_to=${__data.fields.end_ms}",
+                    "targetBlank": true
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "data-links"
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 220
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    }
+  ],
+  "links": [
+    {
+      "title": "Comparar todos los servicios",
+      "type": "link",
+      "url": "/d/adfs-services-oscillations?var-source=${source:percentencode}&from=${__from}&to=${__to}",
+      "targetBlank": false
+    }
+  ]
+}

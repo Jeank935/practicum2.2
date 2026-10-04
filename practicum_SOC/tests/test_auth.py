@@ -10,13 +10,13 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi.testclient import TestClient
 from test_alert_store import sample_alert
 
-import auth_web
-import web_app
-from alert_store import AlertStore
-from auth_config import AuthSettings
-from auth_store import AuthStore, fingerprint
-from dashboard_service import DashboardService
-from oidc_client import OIDCClient
+import practicum_soc.api.routes.auth as auth_web
+import practicum_soc.main as web_app
+from practicum_soc.core.auth_config import AuthSettings
+from practicum_soc.integrations.oidc import OIDCClient
+from practicum_soc.repositories.alerts import AlertStore
+from practicum_soc.repositories.auth import AuthStore, fingerprint
+from practicum_soc.services.dashboard import DashboardService
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -56,8 +56,8 @@ def create_session(db, config, subject="operator-1", role="analyst"):
 def client(db, config, monkeypatch, tmp_path):
     monkeypatch.setattr(web_app.app.state, "soc_state_db", db)
     monkeypatch.setattr(
-        web_app,
-        "service",
+        web_app.app.state,
+        "dashboard_service",
         DashboardService(
             state_db=db,
             analysis_dir=tmp_path / "analysis",
@@ -74,12 +74,16 @@ def client(db, config, monkeypatch, tmp_path):
         "/",
         "/alerts",
         "/services",
+        "/dashboard",
         "/reports/latest",
         "/health",
         "/api/dashboard-version",
         "/api/services-version",
         "/api/v1/alerts",
         "/api/v1/services",
+        "/api/v1/dashboard/snapshot",
+        "/api/v1/dashboard/stream",
+        "/api/v1/operations/metrics",
         "/admin/users",
         "/admin/configuration",
         "/docs",
@@ -94,6 +98,13 @@ def test_private_routes_require_session(client, path):
 def test_browser_is_sent_to_login(client):
     response = client.get("/", headers={"Accept": "text/html"}, follow_redirects=False)
     assert response.status_code == 303 and response.headers["location"] == "/auth/login"
+
+
+def test_technical_metrics_require_administrator(client, db, config):
+    token, _ = create_session(db, config, role="analyst")
+    client.cookies.set("soc_session", token)
+    assert client.get("/api/v1/dashboard/snapshot").status_code == 200
+    assert client.get("/api/v1/operations/metrics").status_code == 403
 
 
 def test_versioned_api_authentication_and_rate_limit_envelope(client, db, config, monkeypatch):

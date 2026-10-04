@@ -1,8 +1,8 @@
 from concurrent.futures import ThreadPoolExecutor
 
-from alert_store import AlertStore
-from auth_config import AuthSettings
-from rate_limits import consume
+from practicum_soc.core.auth_config import AuthSettings
+from practicum_soc.core.rate_limits import consume
+from practicum_soc.repositories.alerts import AlertStore
 
 
 def test_persistent_windows_scope_isolation_and_expired_cleanup(tmp_path):

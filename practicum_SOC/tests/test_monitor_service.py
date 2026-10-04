@@ -1,7 +1,7 @@
 import json
 
-from monitor_service import next_cycle_delay_seconds
-from monitoring import load_exclusions
+from practicum_soc.cli.monitor import next_cycle_delay_seconds
+from practicum_soc.services.monitoring import load_exclusions
 
 
 def test_monitor_skips_delay_while_catching_up() -> None:

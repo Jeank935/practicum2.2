@@ -6,8 +6,8 @@ from pathlib import Path
 
 from test_normalize_events import valid_record
 
-from adfs_schema import SOURCE_COLUMNS
-from container_demo import run_pipeline
+from practicum_soc.cli.container_demo import run_pipeline
+from practicum_soc.schemas.events import SOURCE_COLUMNS
 
 
 def test_container_pipeline_is_reproducible_and_preserves_csv(tmp_path, monkeypatch):

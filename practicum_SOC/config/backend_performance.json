@@ -1,0 +1,5 @@
+{
+  "ttl_seconds": 5,
+  "maximum_entries": 32,
+  "maximum_payload_bytes": 1048576
+}

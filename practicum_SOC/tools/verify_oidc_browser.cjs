@@ -34,6 +34,11 @@ async function main() {
       console.log("Login OIDC real correcto:", role);
     }
     const { administrator: admin, analyst } = sessions;
+    assert.equal((await analyst.page.goto(origin + "/admin/rules")).status(), 403);
+    assert.equal((await admin.page.goto(origin + "/admin/rules")).status(), 200);
+    await admin.page.getByRole("button", { name: "Crear borrador" }).click();
+    await admin.page.waitForURL(url => url.pathname === "/admin/rules" && url.searchParams.has("draft_id"));
+    console.log("Reglas versionadas: administrador crea borrador; analista no accede.");
     for (const route of ["/alerts?page_size=3&severity=high", "/services?page_size=3&window_days=0"]) {
       await analyst.page.goto(origin + route);
       assert.equal(await analyst.page.locator('a[rel="next"]').count(), 1);
@@ -54,6 +59,13 @@ async function main() {
     assert.equal(api.status(), 200);
     assert.equal((await api.json()).data.length, 3);
     assert.equal((await analyst.context.request.get(origin + "/api/v1/alerts?page_size=101")).status(), 422);
+    const snapshot = await analyst.context.request.get(origin + "/api/v1/dashboard/snapshot");
+    assert.equal(snapshot.status(), 200);
+    assert.equal(typeof (await snapshot.json()).operational.revision, "string");
+    assert.equal((await analyst.context.request.get(origin + "/api/v1/operations/metrics")).status(), 403);
+    const operations = await admin.context.request.get(origin + "/api/v1/operations/metrics");
+    assert.equal(operations.status(), 200);
+    assert.ok((await operations.json()).technical.database_bytes > 0);
     console.log("API y navegación paginada con filtros y regreso correctos.");
     if (process.env.SOC_SMOKE_SCREENSHOTS) {
       const fs = require("node:fs");

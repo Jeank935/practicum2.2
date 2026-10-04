@@ -1,20 +1,18 @@
 import csv
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
 
-from event_source import (  # noqa: E402
+from practicum_soc.soc.ingestion import (  # noqa: E402
     CsvEventSource,
     IncrementalCursor,
     PostgresEventSource,
     quote_identifier,
 )
-from normalize_events import SOURCE_COLUMNS  # noqa: E402
+from practicum_soc.soc.normalization import SOURCE_COLUMNS  # noqa: E402
 
 
 def raw_row(event_id, timestamp):

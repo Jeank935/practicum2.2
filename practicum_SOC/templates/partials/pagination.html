@@ -1,6 +1,8 @@
-<nav class="pagination" aria-label="Paginación">
+{% if page.has_previous or page.has_next %}
+<nav class="pagination" aria-label="{{ pagination_label | default('Paginación') }}">
   <span>Página {{ page.page }} · hasta {{ page.page_size }} resultados</span>
   {% if page.has_previous %}<a class="secondary-button" data-page-link href="{{ nav.first_url }}">Primera</a><a class="secondary-button" data-page-link rel="prev" href="{{ nav.previous_url }}">Anterior</a>{% endif %}
   {% if page.has_next %}<a class="primary-button" data-page-link rel="next" href="{{ nav.next_url }}">Siguiente</a>{% endif %}
   <span role="status" data-browse-status></span>
 </nav>
+{% endif %}

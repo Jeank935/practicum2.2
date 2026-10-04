@@ -3,6 +3,7 @@
 !requirements.txt
 !src/
 !src/**/*.py
+!src/**/*.sql
 !config/
 !config/*.json
 !templates/

@@ -1,0 +1,24 @@
+.rules-status { min-height: 1.5rem; margin-bottom: 10px; color: var(--blue-dark); }
+.rules-status.is-error { color: #9b2832; }
+.rules-overview { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.rules-overview p { margin: 5px 0; overflow-wrap: anywhere; }
+.rules-overview small, .rules-hint { color: var(--muted); }
+.rules-workspace, .rules-compare, .rules-publish, .rules-history { margin-top: 18px; }
+.rule-edit { padding: 15px 0; border-bottom: 1px solid var(--line); }
+.rule-edit:last-child { border-bottom: 0; }
+.rule-edit summary { display: flex; justify-content: space-between; gap: 12px; cursor: pointer; color: var(--text-strong); }
+.rule-edit summary span { color: var(--muted); font-size: .8rem; }
+.rule-edit form { padding: 14px 0 2px; }
+.rules-field-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap: 13px 17px; margin-bottom: 15px; }
+.rules-field-grid label, .rules-preview-form label, .rules-publish label, .rules-restore-form label { display: grid; gap: 6px; min-width: 0; color: var(--text); font-weight: 650; }
+.rules-field-grid label small { color: var(--muted); font-weight: 400; }
+.rules-field-grid input, .rules-field-grid select, .rules-preview-form input, .rules-preview-form select, .rules-publish textarea, .rules-restore-form textarea, .rules-restore-form select { width: 100%; max-width: 100%; }
+.rules-preview-form { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)) auto; gap: 12px; align-items: end; }
+.rules-result { padding-top: 12px; }
+.rules-totals { display: flex; gap: 24px; flex-wrap: wrap; margin: 15px 0; }
+.rules-totals span { display: grid; color: var(--muted); }
+.rules-totals strong { color: var(--text-strong); font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+.rules-publish form, .rules-restore-form { display: grid; gap: 12px; max-width: 680px; margin-top: 15px; }
+.rules-history td { overflow-wrap: anywhere; }
+@media (max-width: 920px) { .rules-preview-form { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 620px) { .rules-overview { align-items: stretch; flex-direction: column; } .rules-preview-form { grid-template-columns: 1fr; } .rules-totals { gap: 15px; } }

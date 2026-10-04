@@ -56,7 +56,7 @@
   <section class="services-grid">
     <article class="panel">
       <div class="panel-heading">
-        <div><h2>Servicios más utilizados</h2><p>Participación sobre el periodo seleccionado.</p></div>
+        <div><h2>{{ 'Servicios más utilizados' if filters.sort == 'volume' else 'Servicios observados' }}</h2><p>Participación sobre el periodo seleccionado · página {{ page.page }}.</p></div>
       </div>
       {% if metrics.top_services %}
       <div class="service-bars">
@@ -73,7 +73,8 @@
         </div>
         {% endfor %}
       </div>
-      {% else %}<p class="empty-state">Todavía no existen eventos con servicio para esta fuente.</p>{% endif %}
+      {% else %}<p class="empty-state">No hay servicios para los filtros seleccionados.</p>{% endif %}
+      {% with pagination_label='Paginación de servicios más utilizados' %}{% include "partials/pagination.html" %}{% endwith %}
     </article>
 
     <article class="panel">
@@ -84,7 +85,7 @@
         <div><dt>Accesos exitosos</dt><dd>{{ "{:,}".format(metrics.success_count) }}</dd></div>
         <div><dt>Intentos fallidos</dt><dd>{{ "{:,}".format(metrics.failure_count) }}</dd></div>
         <div><dt>Bloqueos</dt><dd>{{ "{:,}".format(metrics.lockout_count) }}</dd></div>
-        <div><dt>Último evento</dt><dd>{{ metrics.latest_event_time or 'Sin datos' }}</dd></div>
+        <div><dt>Último evento (Loja)</dt><dd><time datetime="{{ metrics.latest_event_time or '' }}">{{ metrics.latest_event_time | local_datetime }}</time></dd></div>
       </dl>
     </article>
   </section>
@@ -133,7 +134,7 @@
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Servicio</th><th>Eventos</th><th>Usuarios</th><th>IP pseudonimizadas</th><th>Éxitos</th><th>Fallos</th><th>Bloqueos</th><th>Incidencia adversa</th><th>Último evento</th></tr></thead>
+        <thead><tr><th>Servicio</th><th>Eventos</th><th>Usuarios</th><th>IP pseudonimizadas</th><th>Éxitos</th><th>Fallos</th><th>Bloqueos</th><th>Incidencia adversa</th><th>Último evento (Loja)</th></tr></thead>
         <tbody>
           {% for service in metrics.services %}
           <tr>
@@ -145,7 +146,7 @@
             <td>{{ "{:,}".format(service.failure_count) }}</td>
             <td>{{ "{:,}".format(service.lockout_count) }}</td>
             <td>{{ service.adverse_rate }}%</td>
-            <td>{{ service.last_seen_utc }}</td>
+            <td><time datetime="{{ service.last_seen_utc }}">{{ service.last_seen_utc | local_datetime }}</time></td>
           </tr>
           {% else %}<tr><td colspan="9" class="empty-state">Sin datos para el periodo seleccionado.</td></tr>{% endfor %}
         </tbody>
@@ -156,4 +157,4 @@
 {% include "partials/pagination.html" %}
 </div>
 {% endblock %}
-{% block scripts %}<script src="{{ url_for('static', path='services.js') }}?v=20260916-impeccable-1"></script>{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', path='services.js') }}?v=20260924-partial-1"></script>{% endblock %}

@@ -1,6 +1,5 @@
 import json
 import os
-import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -9,13 +8,12 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
 
 from test_alert_store import sample_alert
 
-import web_app
-from alert_store import AlertStore
-from dashboard_service import DashboardService
+import practicum_soc.main as web_app
+from practicum_soc.repositories.alerts import AlertStore
+from practicum_soc.services.dashboard import DashboardService
 
 
 class WebAppTests(unittest.TestCase):
@@ -123,7 +121,7 @@ class WebAppTests(unittest.TestCase):
                 operational_config=operational,
             )
             service.run_demo = lambda: {"created_alerts": 0, "persisted_alerts": 1}
-            with patch.object(web_app, "service", service):
+            with patch.object(web_app.app.state, "dashboard_service", service):
                 client = TestClient(web_app.app)
                 dashboard = client.get("/")
                 self.assertEqual(dashboard.status_code, 200)

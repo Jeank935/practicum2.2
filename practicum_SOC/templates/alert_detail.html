@@ -17,6 +17,7 @@
       <div><dt>IP cliente</dt><dd><code>{{ alert.client_ip_key or 'múltiples' }}</code></dd></div>
       <div><dt>Eventos relacionados</dt><dd>{{ alert.event_count }}</dd></div>
       <div><dt>Periodo</dt><dd>{{ alert.first_seen_local }} — {{ alert.last_seen_local }}</dd></div>
+      <div><dt>Versión de reglas</dt><dd><code>{{ alert.rule_version_id or 'Anterior al versionado' }}</code></dd></div>
       <div><dt>Tipos</dt><dd>{{ alert.event_types }}</dd></div>
       <div><dt>Entrega</dt><dd>{{ alert.delivery_channel }} · {{ delivery_labels.get(alert.delivery_status, alert.delivery_status) }}</dd></div>
       {% if alert.has_sensitive_service %}

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from live_sample import sample_checkpoint
+from practicum_soc.services.live_sample import sample_checkpoint
 
 
 def test_sample_uses_boundary_when_more_than_limit_exists() -> None:

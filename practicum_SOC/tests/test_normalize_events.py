@@ -1,15 +1,13 @@
 import csv
 import json
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
 
-from adfs_schema import SOURCE_COLUMNS  # noqa: E402
-from normalize_events import (  # noqa: E402
+from practicum_soc.schemas.events import SOURCE_COLUMNS  # noqa: E402
+from practicum_soc.soc.normalization import (  # noqa: E402
     NormalizationConfig,
     canonicalize_user,
     normalize_csv,

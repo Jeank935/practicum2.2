@@ -1,5 +1,9 @@
 # Árbol del proyecto MVP SOC ADFS
 
+Las rutas Python de este árbol corresponden a la organización anterior. Consulte
+[el árbol y mapa actualizado del backend](backend_refactor.md#4-arquitectura-final)
+para localizar sus módulos dentro de `src/practicum_soc/`.
+
 Este documento resume la estructura del proyecto y la responsabilidad principal de cada archivo. Los datos reales, credenciales, claves HMAC, bases SQLite y cachés no deben versionarse.
 
 ## Flujo principal

@@ -1,17 +1,20 @@
 import contextlib
 import io
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
 
 from test_alert_store import sample_alert
 
-from alert_store import AlertStore
-from notifications import DeliveryResult, DryRunProvider, SocInboxProvider, deliver_once
+from practicum_soc.integrations.notifications import (
+    DeliveryResult,
+    DryRunProvider,
+    SocInboxProvider,
+    deliver_once,
+)
+from practicum_soc.repositories.alerts import AlertStore
 
 
 class FailingProvider:

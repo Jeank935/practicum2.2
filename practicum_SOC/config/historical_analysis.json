@@ -1,0 +1,7 @@
+{
+  "batch_size": 2000,
+  "statement_timeout_seconds": 30,
+  "maximum_range_days": 62,
+  "progress_every_batches": 10,
+  "verification_event_limit": 100
+}

@@ -1,0 +1,6 @@
+{
+  "stream_check_seconds": 10,
+  "stream_max_seconds": 120,
+  "browser_fallback_seconds": 15,
+  "browser_reconnect_seconds": 30
+}

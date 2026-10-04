@@ -1,17 +1,15 @@
 import csv
 import json
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
 
 from test_alert_store import sample_alert
 
-from alert_store import AlertStore
-from generate_report import generate_report
+from practicum_soc.analytics.reporting import generate_report
+from practicum_soc.repositories.alerts import AlertStore
 
 
 def write_json(path: Path, value: dict) -> None:

@@ -65,9 +65,31 @@ Complete SOLO en .env.docker SOC_DB_DSN (con política TLS institucional),
 SOC_DB_VIEW, SOC_DB_TIME_COLUMN y SOC_DB_ID_COLUMN usando los valores ya validados.
 SOC_STORAGE_* es exclusivamente el destino SOC; no lo configure con la UTPL.
 
+Si la conexión ya funciona con PowerShell y sus datos están en `.env`, puede
+copiar solo las variables del origen a Docker con este comando. Conserva las
+claves HMAC, OIDC y del almacenamiento local, y no imprime credenciales:
+
+```powershell
+.\.venv\Scripts\python.exe tools/setup_docker.py --source-env .env
+docker compose --env-file .env.docker config --quiet
+```
+
+El volumen `analysis` de Docker es independiente de la carpeta `analysis` del
+host. Si es nuevo, prepare la línea base antes de iniciar el worker. Estos pasos
+solo normalizan el CSV y construyen la referencia histórica; no crean casos demo:
+
+```powershell
+docker compose --env-file .env.docker --profile demo run --rm --no-deps -T demo python src/normalize_events.py /data/events.csv --output analysis/normalized_events.csv --rejected-output analysis/rejected_events.csv --stats-output analysis/normalization_stats.json
+docker compose --env-file .env.docker --profile demo run --rm --no-deps -T demo python src/build_baseline.py analysis/normalized_events.csv --output-dir analysis/baseline
+```
+
 Antes del primer arranque live, defina el checkpoint inicial autorizado si no
 desea recuperar todo el histórico. Debe indicar tiempo e identificador juntos.
 Un checkpoint guardado prevalece sobre estas variables; no lo borre para probar.
+Para empezar desde ahora sin recuperar todo el histórico, use una marca UTC de
+inicio en `SOC_INITIAL_CHECKPOINT_TIME_UTC` y un identificador inicial compatible
+con la columna configurada en `SOC_INITIAL_CHECKPOINT_EVENT_ID`. No reutilice
+una fecha fija de ejemplo: elija el inicio autorizado de su ejecución.
 
 ```powershell
 docker compose --env-file .env.docker --profile live up -d worker
