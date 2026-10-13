@@ -13,11 +13,22 @@ from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 
 from practicum_soc.api.errors import install_error_handlers
-from practicum_soc.api.routes import alerts, auth, browsing, dashboard, monitoring, rules, services
+from practicum_soc.api.routes import (
+    alerts,
+    auth,
+    browsing,
+    dashboard,
+    investigation,
+    monitoring,
+    rules,
+    services,
+)
 from practicum_soc.api.routes.auth import AuthAccessFilter, AuthenticationMiddleware
+from practicum_soc.api.security import HealthcheckTrustedHostMiddleware, SecurityMiddleware
 from practicum_soc.core.auth_config import AuthSettings
 from practicum_soc.core.paths import PROJECT_ROOT
 from practicum_soc.core.presentation import format_local_datetime
+from practicum_soc.core.security import SecurityPolicy, production_mode, validate_production
 from practicum_soc.repositories.factory import open_store
 from practicum_soc.services.configuration_audit import observe_configuration
 from practicum_soc.services.dashboard import DashboardService
@@ -42,10 +53,22 @@ async def lifespan(application):
 
 
 def create_app(dashboard_service: DashboardService | None = None) -> FastAPI:
+    production = production_mode()
+    hosts = validate_production(AuthSettings.from_env()) if production else []
     state_db = Path(os.environ.get("SOC_STATE_DB", str(ROOT / "analysis/state/soc_alerts.db")))
     if dashboard_service is not None:
         state_db = dashboard_service.state_db
-    application = FastAPI(title="Bandeja SOC ADFS", version="1.0.0", lifespan=lifespan)
+    application = FastAPI(
+        title="Bandeja SOC ADFS",
+        version="1.0.0",
+        lifespan=lifespan,
+        docs_url=None if production else "/docs",
+        redoc_url=None if production else "/redoc",
+        openapi_url=None if production else "/openapi.json",
+    )
+    application.state.production = production
+    if production:
+        application.state.auth_settings = AuthSettings.from_env()
     application.state.soc_state_db = state_db
     application.state.config_dir = ROOT / "config"
     application.state.dashboard_service = dashboard_service or DashboardService(
@@ -58,7 +81,14 @@ def create_app(dashboard_service: DashboardService | None = None) -> FastAPI:
     application.state.templates = Jinja2Templates(directory=ROOT / "templates")
     application.state.templates.env.filters["local_datetime"] = format_local_datetime
     application.add_middleware(AuthenticationMiddleware)
-    for module in (auth, browsing, rules, alerts, dashboard, monitoring, services):
+    if production:
+        application.add_middleware(
+            HealthcheckTrustedHostMiddleware, allowed_hosts=hosts, www_redirect=False
+        )
+    application.add_middleware(
+        SecurityMiddleware, policy=SecurityPolicy.load(), production=production
+    )
+    for module in (auth, browsing, rules, alerts, dashboard, monitoring, services, investigation):
         application.include_router(module.router)
     install_error_handlers(application, application.state.templates)
     logging.getLogger("uvicorn.access").addFilter(AuthAccessFilter())

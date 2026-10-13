@@ -32,3 +32,9 @@ analysis/sprint6-ui/
 *.sqlite3
 .ruff_cache/
 .pytest_cache/
+.security-audit/
+.env.production
+
+# Paquetes de entrega y capturas locales; no son fuentes ni evidencia versionada.
+deliverables/
+analysis/rules-ui/

@@ -273,3 +273,58 @@ def test_postgres_service_window_and_view_privacy(pg_store):
         store.connection.raw.execute("RESET ROLE")
         admin.execute(sql.SQL("DROP OWNED BY {}").format(sql.Identifier(reader)))
         admin.execute(sql.SQL("DROP ROLE {}").format(sql.Identifier(reader)))
+
+
+def test_postgres_investigation_queue_and_encrypted_ip(pg_store, monkeypatch):
+    from cryptography.fernet import Fernet
+
+    from practicum_soc.core.investigation_config import InvestigationSettings
+    from practicum_soc.repositories.investigation import InvestigationRepository
+
+    monkeypatch.setenv("SOC_INVESTIGATION_IP_KEY", Fernet.generate_key().decode())
+    policy = InvestigationSettings.load()
+    store, _, _ = pg_store
+    store.insert_alert(sample_alert(), source_name="test")
+    item = event()
+    assert store.insert_event(
+        item, item["event_time_utc"], "e1", True, "test", original_ip="10.5.6.7"
+    )
+    assert not store.insert_event(
+        item, item["event_time_utc"], "e1", True, "test", original_ip="10.5.6.7"
+    )
+    repository = InvestigationRepository(store)
+    addresses, missing = repository.original_ips("test", ["ip_synthetic"])
+    assert addresses == ["10.5.6.7"] and missing == []
+    first, reused = repository.enqueue("alt_1", "synthetic-actor", policy)
+    assert not reused
+    assert (
+        repository.enqueue("alt_1", "synthetic-actor", policy)[0]["analysis_id"]
+        == first["analysis_id"]
+    )
+    job = repository.claim(policy)
+    assert job["status"] == "in_progress"
+    assert repository.claim(policy) is None
+    repository.finish(job, {"synthetic": "result"})
+    with PostgresAlertStore() as reopened:
+        saved = InvestigationRepository(reopened).get(job["analysis_id"])
+        assert saved["status"] == "completed" and saved["result_ciphertext"]
+        assert '"synthetic"' not in saved["result_ciphertext"]
+
+
+def test_postgres_investigation_concurrent_enqueue(pg_store):
+    from practicum_soc.core.investigation_config import InvestigationSettings
+    from practicum_soc.repositories.investigation import InvestigationRepository
+
+    store, _, _ = pg_store
+    store.insert_alert(sample_alert())
+    policy = InvestigationSettings.load()
+
+    def attempt(_):
+        with PostgresAlertStore() as connection:
+            return InvestigationRepository(connection).enqueue("alt_1", "actor", policy)[0][
+                "analysis_id"
+            ]
+
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        results = list(executor.map(attempt, range(8)))
+    assert len(set(results)) == 1

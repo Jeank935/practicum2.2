@@ -6,6 +6,8 @@ from practicum_soc.repositories.auth import fingerprint
 
 
 def request_scope(method: str, path: str) -> str | None:
+    if path in {"/", "/api/dashboard-version", "/api/services-version", "/health", "/auth/me"}:
+        return "browse"
     if path.startswith("/api/v1/"):
         path = path[len("/api/v1") :]
     if path in {"/alerts", "/services"}:
@@ -27,6 +29,8 @@ def request_scope(method: str, path: str) -> str | None:
     if path.startswith("/admin/rules") or path.startswith("/admin/rule-config"):
         return "rule_preview" if path.endswith("/preview") else "rule_management"
     if path.startswith("/alerts/"):
+        if "/investigations" in path:
+            return "investigation_submit" if method == "POST" else "investigation_read"
         return "case_update" if method == "PATCH" else "case_view"
     return {
         "/reports/latest": "report",

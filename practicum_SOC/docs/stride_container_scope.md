@@ -9,11 +9,11 @@ las reglas. Este complemento alinea el despliegue con el acuerdo del Sprint 0.
 |---|---|---|
 | Dashboards, alertas e investigación | Sí | Sí |
 | Cambiar estados y registrar evidencia | Sí | Sí |
-| Configurar reglas y puntajes con trazabilidad | Sí | Sí |
+| Configurar reglas y puntajes con trazabilidad | Sí | No |
 | Administrar usuarios y asignar roles | Sí | No |
 
-El Sprint 2 implementa identidad OIDC local y autorización de operadores. La
-configuración de reglas mediante interfaz sigue pendiente; no se añade aquí.
+El acceso OIDC local y la autorización de operadores están implementados. La
+configuración versionada de reglas mediante interfaz es exclusiva del administrador.
 Identificar a una persona
 requiere consulta institucional autorizada; el HMAC no es reversible.
 Los roles internos de PostgreSQL y Grafana son cuentas técnicas, no nuevos
@@ -22,7 +22,7 @@ perfiles funcionales de usuario del SOC.
 ## Reglas vigentes
 
 La fuente de verdad continúa siendo config/detection_rules.json y
-src/detect_alerts.py. No se adoptan automáticamente ventanas, umbrales ni nuevas
+src/practicum_soc/soc/detection.py. No se adoptan automáticamente ventanas, umbrales ni nuevas
 reglas del Word. Los puntajes STRIDE (amenazas al sistema) no son los scores
 del detector (señales de autenticación). Se conserva su catálogo actual.
 
@@ -31,7 +31,7 @@ del detector (señales de autenticación). Se conserva su catálogo actual.
 | Categoría | Medida de esta entrega | Pendiente institucional |
 |---|---|---|
 | Suplantación | Keycloak OIDC con PKCE, firma y sesiones acotadas; Grafana privado | MFA, HTTPS y dominio institucional |
-| Manipulación | Fuente de solo lectura; deduplicación y transacciones del SOC | Integridad de evidencias, aprobación/versionado de reglas |
+| Manipulación | Fuente de solo lectura; deduplicación, transacciones y reglas versionadas con publicación auditada | Custodia de evidencias y aprobación institucional de parámetros |
 | Repudio | Consultas y estados de casos con operador; cambios de usuarios con antes/después; huellas de configuración desplegada | Auditoría resistente a alteración; atribución de cambios externos mediante el proceso de entrega |
 | Divulgación | HMAC, imágenes sin .env/CSV, Grafana solo vista agregada | HTTPS, permisos de exportación y resolución de identidad |
 | Denegación de servicio | Métricas preagregadas; límites persistentes y atómicos por operación/operador; login por IP de conexión | Pruebas de carga de clases, protección del proxy y alertas operativas |
@@ -42,8 +42,8 @@ confianza distintos. Solo el procesador recibe credenciales del origen. El
 servicio init tiene privilegios elevados únicamente sobre la base SOC local.
 No se conecta el datasource de Grafana a la fuente institucional.
 
-Retención: propuesta de 90 días de eventos, 180 días desde cierre de casos y
-12 meses de agregados, pendiente de aprobación. No se activa borrado automático.
+Retención: propuesta inicial de 30 días, pendiente de aprobación y de definir
+excepciones para casos/evidencia que necesiten más tiempo. No se activa borrado automático.
 Dominio interno, acceso de red y operación los adapta UTPL. Este piloto NO está
 listo para exposición pública; el acceso multiusuario local debe trasladarse a
 HTTPS y al dominio aprobado antes de abrirlo a la red institucional.

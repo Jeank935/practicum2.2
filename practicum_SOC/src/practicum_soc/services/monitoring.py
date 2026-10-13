@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from practicum_soc.core.private_ip import capture_original_ip
 from practicum_soc.integrations.notifications import NotificationProvider, deliver_once
 from practicum_soc.repositories.alerts import AlertStore
 from practicum_soc.repositories.rules import RuleConfigStore
@@ -198,6 +199,7 @@ def run_monitor_cycle(
                 source_record.cursor.event_id,
                 is_valid,
                 source_name=source.source_name,
+                original_ip=capture_original_ip(source_record.values, normalized, secret),
             )
 
         if records:

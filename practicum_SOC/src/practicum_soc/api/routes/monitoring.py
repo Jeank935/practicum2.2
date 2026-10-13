@@ -44,11 +44,18 @@ def readiness(request: Request):
 @router.post("/demo/run")
 def demo_run(
     service: Annotated[DashboardService, Depends(get_dashboard)],
+    request: Request,
 ):
+    if request.app.state.production:
+        raise HTTPException(404, "Operación no disponible en producción")
+    if request.state.operator["role"] != "administrator":
+        raise HTTPException(403, "Se requiere rol administrador")
     try:
         return service.run_demo()
-    except FileNotFoundError as error:
-        raise HTTPException(status_code=409, detail=str(error)) from error
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=409, detail="No está preparado el dataset de demostración"
+        ) from None
 
 
 @router.get("/reports/latest")

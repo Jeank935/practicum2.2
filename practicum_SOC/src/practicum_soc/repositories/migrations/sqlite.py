@@ -6,6 +6,7 @@ import sqlite3
 
 from practicum_soc.repositories.migrations.auth import AUTH_SCHEMA
 from practicum_soc.repositories.migrations.browsing import install_browsing
+from practicum_soc.repositories.migrations.investigation import install_investigation
 from practicum_soc.repositories.migrations.rules import install_rules
 
 SCHEMA_SQL = """
@@ -133,6 +134,7 @@ def ensure_schema(connection: sqlite3.Connection, now_utc: str) -> None:
         ).fetchone()
     ):
         install_rules(connection)
+        install_investigation(connection)
         connection.execute(
             "CREATE INDEX IF NOT EXISTS idx_alerts_source_updated "
             "ON alerts(source_name, updated_at_utc)"
@@ -185,3 +187,4 @@ def ensure_schema(connection: sqlite3.Connection, now_utc: str) -> None:
     install_browsing(connection)
     connection.commit()
     install_rules(connection)
+    install_investigation(connection)

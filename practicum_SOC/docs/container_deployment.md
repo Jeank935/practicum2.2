@@ -112,7 +112,7 @@ número de filas. Rechazados y eventos sin servicio no alimentan estas métricas
 ON CONFLICT evita sumar eventos duplicados; eventos tardíos actualizan el minuto
 original. No se reescanea la tabla completa para cada refresco de Grafana.
 
-Grafana refresca cada minuto y muestra volumen, resultados, porcentaje de fallos
+La vista conjunta de Grafana refresca cada 30 segundos y muestra volumen, resultados, porcentaje de fallos
 y resumen por servicio. Las consultas filtran el rango y la fuente; el usuario
 soc_grafana solo tiene SELECT sobre soc_service_minute_dashboard. La vista no
 incluye usuarios, IP ni URL de servicio. Los nombres proceden del catálogo;
@@ -174,5 +174,7 @@ Sin SOC_TEST_STORAGE_DSN, las pruebas PostgreSQL se omiten explícitamente;
 el resto se ejecuta sin red UTPL. Las pruebas de integración crean y eliminan
 únicamente esquemas sintéticos con nombres aleatorios.
 
-La prueba Docker autocontenida está en tools/smoke_containers.py. Consulte
-[resultados y límites de la validación](deployment_validation.md).
+La prueba Docker autocontenida está en tools/smoke_containers.py. Crea sus
+propios recursos sintéticos; no verifica por sí sola el despliegue institucional.
+Consulte [la entrega al ingeniero](engineer_handoff.md) y
+[los controles y pendientes de producción](production_readiness.md).

@@ -1,0 +1,7 @@
+{
+  "maximum_request_bytes": 1048576,
+  "maximum_query_bytes": 16384,
+  "request_body_timeout_seconds": 15,
+  "content_security_policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+  "hsts_max_age_seconds": 31536000
+}

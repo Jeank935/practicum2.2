@@ -3,6 +3,7 @@
 from practicum_soc.analytics.schema import install_analytics
 from practicum_soc.repositories.migrations.auth import AUTH_SCHEMA
 from practicum_soc.repositories.migrations.browsing import install_browsing
+from practicum_soc.repositories.migrations.investigation import install_investigation
 from practicum_soc.repositories.migrations.rules import install_rules
 from practicum_soc.repositories.migrations.sqlite import SCHEMA_SQL
 
@@ -98,6 +99,7 @@ def install_schema(connection) -> None:
         connection.execute(AUTH_SCHEMA)
         install_browsing(connection, postgres=True)
         install_rules(connection, postgres=True)
+        install_investigation(connection, postgres=True)
         install_analytics(connection)
         connection.execute(
             "ALTER TABLE alert_status_history ADD COLUMN IF NOT EXISTS actor_id TEXT NOT NULL DEFAULT 'system'"

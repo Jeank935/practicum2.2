@@ -105,18 +105,18 @@ class AuthStore:
     def session(self, token: str, *, touch: bool = True):
         now = int(time.time())
         row = self.db.execute(
-            "SELECT u.*, s.csrf_token, s.expires_at FROM platform_sessions s "
+            "SELECT u.*, s.csrf_token, s.expires_at, s.last_seen FROM platform_sessions s "
             "JOIN platform_users u ON u.user_id = s.user_id "
             "WHERE s.token_hash = ? AND s.expires_at > ? AND s.last_seen > ? AND u.enabled = 1",
             (fingerprint(token), now, now - self.policy["session_idle_seconds"]),
         ).fetchone()
         if row is None:
             return None
-        if touch:
+        if touch and row["last_seen"] <= now - self.policy["session_touch_interval_seconds"]:
             with self.db:
                 self.db.execute(
-                    "UPDATE platform_sessions SET last_seen = ? WHERE token_hash = ?",
-                    (now, fingerprint(token)),
+                    "UPDATE platform_sessions SET last_seen = ? WHERE token_hash = ? AND last_seen <= ?",
+                    (now, fingerprint(token), now - self.policy["session_touch_interval_seconds"]),
                 )
         return dict(row)
 

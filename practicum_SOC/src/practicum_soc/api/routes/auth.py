@@ -4,7 +4,7 @@ import json
 import logging
 import secrets
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -92,16 +92,19 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                 request.state.operator = user
                 request.state.csrf_token = user["csrf_token"]
                 if path.startswith("/admin") and user["role"] != "administrator":
+                    logging.getLogger(__name__).warning("security_event=administrator_role_denied")
                     return JSONResponse(
                         {"detail": "Se requiere rol administrador"}, status_code=403
                     )
                 if request.method not in {"GET", "HEAD", "OPTIONS"}:
                     supplied = request.headers.get("x-csrf-token", "")
                     if not secrets.compare_digest(supplied, user["csrf_token"]):
+                        logging.getLogger(__name__).warning("security_event=csrf_rejected")
                         return JSONResponse({"detail": "Token CSRF inválido"}, status_code=403)
                     if request.headers.get("origin", origin(config.public_url)) != origin(
                         config.public_url
                     ):
+                        logging.getLogger(__name__).warning("security_event=origin_rejected")
                         return JSONResponse({"detail": "Origen no permitido"}, status_code=403)
             scope = request_scope(request.method, path)
             if config.mode == "oidc" and scope:
@@ -115,12 +118,18 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                     consume_request_limit, request, config, scope, subject
                 )
                 if retry:
+                    logging.getLogger(__name__).warning(
+                        "security_event=rate_limited scope=%s", scope
+                    )
                     return JSONResponse(
                         {"detail": "Demasiadas solicitudes. Inténtalo más tarde."},
                         status_code=429,
                         headers={"Retry-After": str(retry)},
                     )
-        except Exception:
+        except Exception as error:
+            logging.getLogger(__name__).error(
+                "security_event=authentication_unavailable type=%s", type(error).__name__
+            )
             return JSONResponse(
                 {"detail": "Autenticación temporalmente no disponible"}, status_code=503
             )
@@ -175,7 +184,11 @@ def login(request: Request):
 
 
 @router.get("/auth/callback")
-def callback(request: Request, state: str = "", code: str = ""):
+def callback(
+    request: Request,
+    state: str = Query("", max_length=512),
+    code: str = Query("", max_length=2048),
+):
     config = settings(request)
     try:
         if not state or not code:
@@ -200,6 +213,7 @@ def callback(request: Request, state: str = "", code: str = ""):
             path="/",
         )
     except Exception:
+        logging.getLogger(__name__).warning("security_event=oidc_callback_rejected")
         response = error_page(
             request,
             "No se pudo autorizar el acceso. Reinicia el inicio de sesión o consulta al administrador.",

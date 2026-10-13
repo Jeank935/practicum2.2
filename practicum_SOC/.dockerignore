@@ -1,6 +1,8 @@
 **
 !Dockerfile
 !requirements.txt
+!requirements-runtime.txt
+!constraints-runtime.txt
 !src/
 !src/**/*.py
 !src/**/*.sql

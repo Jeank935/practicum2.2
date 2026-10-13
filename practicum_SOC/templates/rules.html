@@ -1,65 +1,90 @@
 {% extends "base.html" %}
 {% block title %}Reglas y puntajes · SOC ADFS{% endblock %}
-{% block styles %}<link rel="stylesheet" href="/static/rules.css?v=1">{% endblock %}
+{% block styles %}<link rel="stylesheet" href="/static/rules.css?v=20261013">{% endblock %}
 {% block content %}
-<header class="page-header">
+{% set descriptions = {'brute_force_user':'Detecta intentos repetidos contra una misma cuenta. Un fallo aislado no abre un caso.', 'password_spraying_ip':'Relaciona los fallos de una IP sobre varias cuentas para identificar posible password spraying.', 'success_after_failures':'Relaciona un acceso exitoso con los fallos anteriores de la misma cuenta.', 'account_lockout':'Agrupa los bloqueos de una cuenta dentro de una ventana de tiempo.', 'new_ip_for_user':'Compara la IP con el historial del usuario. Requiere una línea base suficiente.'} %}
+{% set hints = {'window_minutes':'Tiempo en el que se agrupan los eventos.', 'minimum_failures':'Cantidad necesaria para activar la regla.', 'minimum_distinct_users':'Cuentas distintas afectadas por una misma IP.', 'minimum_lockouts':'Bloqueos necesarios para abrir un caso.', 'minimum_events':'Eventos necesarios para activar la regla.', 'cooldown_minutes':'Tiempo de espera antes de abrir otro caso del mismo patrón.', 'base_risk':'Puntaje inicial, antes de aplicar bonificaciones.', 'critical_failure_threshold':'Fallos a partir de los que se aplica el bono por intensidad.', 'critical_distinct_users_threshold':'Cuentas a partir de las que se considera un patrón intenso.', 'intense_pattern_bonus':'Puntos adicionales cuando el patrón es intenso.', 'multiple_accounts_bonus':'Puntos adicionales por afectar a varias cuentas.', 'success_bonus':'Puntos adicionales por el acceso exitoso posterior.'} %}
+<div class="rules-page">
+<header class="page-header rules-page-header"><div>
   <h1>Reglas y puntajes</h1>
-  <p>Prepara cambios, compáralos con el histórico y publícalos cuando estén revisados.</p>
+  <p>Ajusta la detección sin tocar el monitor. Prueba los cambios antes de publicarlos.</p></div>
+  <a class="secondary-button" href="#history-title">Ver historial</a>
 </header>
 <div class="rules-status" id="rules-message" role="status" aria-live="polite"></div>
 <section class="panel rules-overview" aria-labelledby="active-title">
-  <div><h2 id="active-title">Versión activa</h2><p><code>{{ active.version_id }}</code></p>
-    <small>Publicada inicialmente o seleccionada por el administrador. Los ciclos nuevos usan esta versión.</small></div>
+  <div><h2 id="active-title"><span class="rules-live-dot" aria-hidden="true"></span>Versión activa <span class="rules-badge">En uso</span></h2>
+    <p>Esta configuración se aplica a los nuevos ciclos del monitor.</p>
+    <details class="rules-version-id"><summary>Ver identificador de versión</summary><code>{{ active.version_id }}</code></details></div>
   <button class="primary-button" type="button" data-create-draft>Crear borrador</button>
 </section>
 
 {% if draft %}
+<ol class="rules-steps" aria-label="Proceso de publicación"><li><span>1</span><div><strong>Editar borrador</strong><small>Sin afectar la detección activa</small></div></li><li><span>2</span><div><strong>Comparar con el histórico</strong><small>Revisar el efecto en los casos</small></div></li><li><span>3</span><div><strong>Revisar y publicar</strong><small>Registrar el motivo del cambio</small></div></li></ol>
 <section class="panel rules-workspace" aria-labelledby="draft-title" data-draft-id="{{ draft.version_id }}" data-draft-hash="{{ draft.payload_hash }}">
-  <div class="panel-heading"><div><h2 id="draft-title">Borrador</h2><p><code>{{ draft.version_id }}</code> · parte de <code>{{ draft.parent_version_id }}</code></p></div></div>
-  <p>Los valores del borrador todavía no afectan el monitor. Cada campo muestra el valor activo para comparar.</p>
+  <div class="rules-workspace-heading"><div><h2 id="draft-title">Editor de borrador</h2><p>Selecciona una regla. El valor activo aparece debajo de cada campo.</p></div><div class="rules-change-summary"><span data-diff-summary></span><span class="rules-badge rules-unsaved" data-unsaved-indicator hidden>Sin guardar</span></div></div>
+  <details class="rules-version-id rules-draft-id"><summary>Identificadores del borrador</summary><p>Borrador: <code>{{ draft.version_id }}</code><br>Origen: <code>{{ draft.parent_version_id }}</code></p></details>
+  <div class="rules-editor-layout">
+  <aside class="rules-catalog" aria-label="Catálogo de reglas"><h3>Reglas de detección</h3>
+    <label class="rules-mobile-picker">Regla que quieres editar<select data-rule-picker>{% for key in rule_fields %}<option value="{{ key }}">{{ rule_labels[key] }}</option>{% endfor %}<option value="scoring">Severidad y bonificaciones</option></select></label>
+    {% for key, fields in rule_fields.items() %}<button type="button" class="rules-choice" data-rule-select="{{ key }}" aria-controls="rule-{{ key }}" aria-pressed="{{ 'true' if loop.first else 'false' }}"><strong>{{ rule_labels[key] }}</strong><span><i class="rules-state-dot {% if not draft.config[key].enabled %}is-off{% endif %}" aria-hidden="true"></i>{{ 'Habilitada' if draft.config[key].enabled else 'Desactivada' }}</span><small data-rule-change-count="{{ key }}"></small></button>{% endfor %}
+    <h3 class="rules-catalog-scoring">Priorización</h3><button type="button" class="rules-choice" data-rule-select="scoring" aria-controls="rule-scoring" aria-pressed="false"><strong>Severidad y bonificaciones</strong><span>Escala de riesgo de 0 a 100</span><small data-rule-change-count="scoring"></small></button>
+  </aside><div class="rules-editor-content">
   {% for key, fields in rule_fields.items() %}
   {% set rule = draft.config[key] %}
   {% set reference = active.config[key] %}
-  <details class="rule-edit" {% if loop.first %}open{% endif %}>
+  <details class="rule-edit" id="rule-{{ key }}" data-rule-panel="{{ key }}" {% if loop.first %}open{% endif %}>
     <summary><strong>{{ rule_labels[key] }}</strong><span>{{ 'Habilitada' if rule.enabled else 'Desactivada' }}</span></summary>
+    <p class="rules-rule-description">{{ descriptions.get(key, '') }}</p>
     <form data-rule-form="{{ key }}">
+      {% for group, heading in [('condition','Condición de detección'),('repeat','Control de repetición'),('score','Puntaje y escalamiento')] %}
+      <fieldset class="rules-parameter-group"><legend>{{ heading }}</legend>
       <div class="rules-field-grid">
       {% for field in fields %}
-        <label>{{ field_labels.get(field, field) }}
+      {% set category = 'repeat' if field == 'cooldown_minutes' else 'score' if field == 'base_risk' or field.endswith('bonus') or field.startswith('critical_') else 'condition' %}
+      {% if category == group %}
+        <label class="rules-field">{{ field_labels.get(field, field) }}
           {% if field == 'enabled' %}
-          <select name="{{ field }}"><option value="true" {% if rule[field] %}selected{% endif %}>Sí</option><option value="false" {% if not rule[field] %}selected{% endif %}>No</option></select>
+          <select name="{{ field }}" data-active-value="{{ 'true' if reference[field] else 'false' }}"><option value="true" {% if rule[field] %}selected{% endif %}>Sí</option><option value="false" {% if not rule[field] %}selected{% endif %}>No</option></select>
           {% else %}
-          <input name="{{ field }}" type="number" step="1" min="{{ 0 if field == 'cooldown_minutes' or field == 'base_risk' or field.endswith('bonus') else 1 }}" max="{{ 10080 if field == 'cooldown_minutes' else 1440 if field == 'window_minutes' else 100 if field == 'base_risk' or field.endswith('bonus') else 1000 }}" value="{{ rule[field] }}" required>
+          <input name="{{ field }}" data-active-value="{{ reference[field] }}" aria-describedby="hint-{{ key }}-{{ field }}" type="number" step="1" min="{{ 0 if field == 'cooldown_minutes' or field == 'base_risk' or field.endswith('bonus') else 1 }}" max="{{ 10080 if field == 'cooldown_minutes' else 1440 if field == 'window_minutes' else 100 if field == 'base_risk' or field.endswith('bonus') else 1000 }}" value="{{ rule[field] }}" required>
           {% endif %}
-          <small>Activo: {{ 'Sí' if reference[field] is sameas true else 'No' if reference[field] is sameas false else reference[field] }}</small>
+          <small class="rules-active-value">Activo: {{ 'Sí' if reference[field] is sameas true else 'No' if reference[field] is sameas false else reference[field] }} <span class="rules-change-label" hidden>Modificado</span></small>
+          {% if field != 'enabled' %}<small class="rules-field-hint" id="hint-{{ key }}-{{ field }}">{{ hints.get(field,'') }}</small>{% endif %}
         </label>
+      {% endif %}
       {% endfor %}
-      </div>
-      <button class="secondary-button" type="submit">Guardar esta regla</button>
+      </div></fieldset>
+      {% endfor %}
+      <div class="rules-save-row"><button class="primary-button" type="submit">Guardar esta regla</button><small>Solo se guarda en el borrador.</small></div>
     </form>
   </details>
   {% endfor %}
-  <details class="rule-edit">
+  <details class="rule-edit" id="rule-scoring" data-rule-panel="scoring">
     <summary><strong>Escala de severidad y bono por volumen</strong></summary>
+    <p class="rules-rule-description">El puntaje final determina la prioridad del caso. Las bonificaciones aumentan el riesgo; el máximo es 100.</p>
+    {% set scale = draft.config.risk_scoring.severity_thresholds %}
+    <div class="rules-severity-scale" aria-label="Rangos de severidad"><div class="severity-low"><strong>Baja</strong><span data-score-range="low">0–{{ scale.medium - 1 }}</span></div><div class="severity-medium"><strong>Media</strong><span data-score-range="medium">{{ scale.medium }}–{{ scale.high - 1 }}</span></div><div class="severity-high"><strong>Alta</strong><span data-score-range="high">{{ scale.high }}–{{ scale.critical - 1 }}</span></div><div class="severity-critical"><strong>Crítica</strong><span data-score-range="critical">{{ scale.critical }}–100</span></div></div>
     <form data-scoring-form>
       <div class="rules-field-grid">
       {% for field in ['volume_bonus_per_event','max_volume_bonus'] %}
-        <label>{{ 'Puntos por evento sobre el umbral' if field == 'volume_bonus_per_event' else 'Bono máximo por volumen' }}
-        <input name="{{ field }}" type="number" min="0" max="100" step="1" value="{{ draft.config.risk_scoring[field] }}" required>
-        <small>Activo: {{ active.config.risk_scoring[field] }}</small></label>
+        <label class="rules-field">{{ 'Puntos por evento sobre el umbral' if field == 'volume_bonus_per_event' else 'Bono máximo por volumen' }}
+        <input name="{{ field }}" data-active-value="{{ active.config.risk_scoring[field] }}" type="number" min="0" max="100" step="1" value="{{ draft.config.risk_scoring[field] }}" required>
+        <small class="rules-active-value">Activo: {{ active.config.risk_scoring[field] }} <span class="rules-change-label" hidden>Modificado</span></small></label>
       {% endfor %}
       {% for severity, label in [('medium','Media'),('high','Alta'),('critical','Crítica')] %}
-        <label>Desde {{ label }}
-        <input name="severity_{{ severity }}" type="number" min="1" max="100" step="1" value="{{ draft.config.risk_scoring.severity_thresholds[severity] }}" required>
-        <small>Activo: {{ active.config.risk_scoring.severity_thresholds[severity] }}</small></label>
+        <label class="rules-field">{{ label }}: desde este puntaje
+        <input name="severity_{{ severity }}" data-active-value="{{ active.config.risk_scoring.severity_thresholds[severity] }}" type="number" min="1" max="100" step="1" value="{{ draft.config.risk_scoring.severity_thresholds[severity] }}" required>
+        <small class="rules-active-value">Activo: {{ active.config.risk_scoring.severity_thresholds[severity] }} <span class="rules-change-label" hidden>Modificado</span></small></label>
       {% endfor %}
       </div>
       <p>La severidad baja empieza en cero. Los otros umbrales deben aumentar en orden.</p>
       <button class="secondary-button" type="submit">Guardar puntajes</button>
     </form>
   </details>
+</div></div>
 </section>
 
+<div class="rules-review-layout">
 <section class="panel rules-compare" aria-labelledby="preview-title">
   <h2 id="preview-title">Comparar con eventos históricos</h2>
   <p>La simulación no escribe casos. Aplica deduplicación y pausa en memoria; los conteos son una estimación para este periodo y esta fuente.</p>
@@ -72,10 +97,10 @@
     <label>Hasta (hora local)<input type="datetime-local" name="to" value="{{ default_to | default('') }}" required></label>
     <button class="secondary-button" type="submit" {% if not has_events %}disabled{% endif %}>Simular y comparar</button>
   </form>
-  <p class="rules-hint">{% if has_events %}Rangos disponibles: {% for source, range in bounds.items() %}{% if range.start_utc %}{{ source }} {{ range.start_utc[:10] }}–{{ range.end_utc[:10] }}; {% endif %}{% endfor %}Máximo {{ management.maximum_preview_days }} días y {{ management.maximum_preview_events }} eventos por prueba.{% else %}Cargue primero eventos normalizados en esta base SOC. La comparación estará disponible cuando exista un periodo de evaluación.{% endif %}</p>
+  <p class="rules-hint">{% if has_events %}Periodos disponibles: {% for source, range in bounds.items() %}{% if range.start_utc %}{{ {'csv_demo_mvp':'CSV histórico','csv_demo':'CSV incremental','postgresql_live':'PostgreSQL live'}.get(source, source) }}: {{ (range.start_utc | local_datetime)[:10] }}–{{ (range.end_utc | local_datetime)[:10] }}. {% endif %}{% endfor %}Máximo {{ management.maximum_preview_days }} días y {{ management.maximum_preview_events }} eventos por prueba.{% else %}Cargue primero eventos normalizados en esta base SOC. La comparación estará disponible cuando exista un periodo de evaluación.{% endif %}</p>
   {% if preview %}
   <div class="rules-result">
-    <p>Prueba {{ preview.created_at_utc[:19] }} UTC · {{ preview.source }} · {{ preview.events_read }} eventos leídos<br>Periodo: {{ preview.from_utc }} a {{ preview.to_utc }}</p>
+    <p>Prueba {{ preview.created_at_utc | local_datetime }} · {{ preview.source }} · {{ preview.events_read }} eventos leídos<br>Periodo: {{ preview.from_utc | local_datetime }} a {{ preview.to_utc | local_datetime }}</p>
     <div class="rules-totals"><span>Activa <strong>{{ preview.active.total }}</strong></span><span>Borrador <strong>{{ preview.draft.total }}</strong></span><span>Diferencia <strong>{{ '%+d'|format(preview.difference) }}</strong></span></div>
     <div class="table-wrap"><table><thead><tr><th>Regla</th><th>Activa</th><th>Borrador</th></tr></thead><tbody>
       {% for key, label in rule_labels.items() %}{% set rule_id = active.config[key].rule_id %}
@@ -83,31 +108,38 @@
       {% endfor %}</tbody></table></div>
     <p>Por severidad: {% for severity in ['low','medium','high','critical'] %}{{ severity }} {{ preview.active.by_severity.get(severity,0) }} → {{ preview.draft.by_severity.get(severity,0) }}{% if not loop.last %} · {% endif %}{% endfor %}</p>
   </div>
+  {% else %}<div class="rules-empty"><strong>Aún no hay una comparación</strong><p>Guarda tus ajustes y selecciona un periodo para comparar los casos de la versión activa con los del borrador.</p></div>
   {% endif %}
 </section>
 
 <section class="panel rules-publish" aria-labelledby="publish-title">
   <h2 id="publish-title">Publicar borrador</h2>
   <p>Requiere una comparación vigente de este mismo borrador. El siguiente ciclo del monitor tomará la versión publicada.</p>
+  <ul class="rules-publish-checklist"><li>{{ 'Cambios respecto de la versión activa' if draft.payload_hash != active.payload_hash else 'Pendiente: ajustar al menos un parámetro' }}</li><li>{{ 'Comparación registrada; se verificará su vigencia al publicar' if preview else 'Pendiente: simular el borrador' }}</li><li>Justifica el ajuste para dejar constancia en el historial.</li></ul>
   {% if draft.payload_hash == active.payload_hash %}<p>Modifique al menos un parámetro antes de publicar.</p>{% endif %}
   <form data-publish-form><label>Motivo de la publicación<textarea name="justification" maxlength="500" minlength="10" rows="3" required placeholder="Qué patrón se ajusta y por qué"></textarea></label>
   <button class="primary-button" type="submit" {% if not preview or draft.payload_hash == active.payload_hash %}disabled{% endif %}>Publicar versión</button></form>
 </section>
+</div>
+{% else %}
+<section class="panel rules-start"><h2>Prepara un ajuste controlado</h2><p>Crea un borrador para editar las cinco reglas de detección y la escala de severidad. Después podrás comparar sus resultados con el histórico. La versión activa no cambia hasta que publiques.</p><div class="rules-readonly-list">{% for key in rule_fields %}<div><strong>{{ rule_labels[key] }}</strong><span>{{ 'Habilitada' if active.config[key].enabled else 'Desactivada' }}</span></div>{% endfor %}</div></section>
 {% endif %}
 
 <section class="panel rules-history" aria-labelledby="history-title">
   <h2 id="history-title">Versiones y restauración</h2>
   <p>Restaurar selecciona una configuración publicada y registra quién la activó y por qué.</p>
-  <div class="table-wrap"><table><thead><tr><th>Versión</th><th>Estado</th><th>Autor</th><th>Creación UTC</th></tr></thead><tbody>
-    {% for item in versions %}<tr><td><code>{{ item.version_id }}</code></td><td>{{ 'Activa' if item.version_id == active.version_id else 'Borrador' if item.status == 'draft' else 'Publicada' }}{% if item.status == 'draft' %} · <a href="/admin/rules?draft_id={{ item.version_id }}">Abrir</a>{% endif %}</td><td>{{ item.created_name }}</td><td>{{ item.created_at_utc }}</td></tr>{% endfor %}
+  <div class="table-wrap"><table><thead><tr><th>Versión</th><th>Estado</th><th>Autor</th><th>Creación (Loja)</th></tr></thead><tbody>
+    {% for item in versions %}<tr><td><code>{{ item.version_id }}</code></td><td>{{ 'Activa' if item.version_id == active.version_id else 'Borrador' if item.status == 'draft' else 'Publicada' }}{% if item.status == 'draft' %} · <a href="/admin/rules?draft_id={{ item.version_id }}">Abrir</a>{% endif %}</td><td>{{ item.created_name }}</td><td>{{ item.created_at_utc | local_datetime }}</td></tr>{% endfor %}
   </tbody></table></div>
-  <form data-restore-form class="rules-restore-form"><label>Versión publicada<select name="version_id" required><option value="">Seleccione una versión</option>{% for item in restore_options %}<option value="{{ item.version_id }}">{{ item.version_id }} · {{ item.created_at_utc[:16] }}</option>{% endfor %}</select></label>
-    <label>Motivo de la restauración<textarea name="justification" minlength="10" maxlength="500" rows="2" required></textarea></label><button class="secondary-button" type="submit" {% if not restore_options %}disabled{% endif %}>Restaurar versión</button>{% if not restore_options %}<small>Habrá una versión para restaurar después de la primera publicación.</small>{% endif %}</form>
+  <details class="rules-restore-details"><summary>Restaurar una versión anterior</summary>
+  <form data-restore-form class="rules-restore-form"><label>Versión publicada<select name="version_id" required><option value="">Seleccione una versión</option>{% for item in restore_options %}<option value="{{ item.version_id }}">{{ item.version_id }} · {{ item.created_at_utc | local_datetime }}</option>{% endfor %}</select></label>
+    <label>Motivo de la restauración<textarea name="justification" minlength="10" maxlength="500" rows="2" required></textarea></label><button class="secondary-button" type="submit" {% if not restore_options %}disabled{% endif %}>Restaurar versión</button>{% if not restore_options %}<small>Habrá una versión para restaurar después de la primera publicación.</small>{% endif %}</form></details>
 </section>
 <section class="panel rules-history" aria-labelledby="changes-title"><h2 id="changes-title">Historial de decisiones</h2>
-  <div class="table-wrap"><table><thead><tr><th>Fecha UTC</th><th>Acción</th><th>Autor</th><th>Versión</th><th>Motivo</th></tr></thead><tbody>
-    {% for item in history %}<tr><td>{{ item.occurred_at_utc[:19] }}</td><td>{{ {'initial':'Inicial','draft_created':'Borrador creado','draft_changed':'Borrador modificado','preview':'Comparación','published':'Publicación','restored':'Restauración'}.get(item.action,item.action) }}</td><td>{{ item.actor_name }}</td><td><code>{{ item.version_id }}</code></td><td>{{ item.justification }}</td></tr>{% endfor %}
+  <div class="table-wrap"><table><thead><tr><th>Fecha (Loja)</th><th>Acción</th><th>Autor</th><th>Versión</th><th>Motivo</th></tr></thead><tbody>
+    {% for item in history %}<tr><td>{{ item.occurred_at_utc | local_datetime }}</td><td>{{ {'initial':'Inicial','draft_created':'Borrador creado','draft_changed':'Borrador modificado','preview':'Comparación','published':'Publicación','restored':'Restauración'}.get(item.action,item.action) }}</td><td>{{ item.actor_name }}</td><td><code>{{ item.version_id }}</code></td><td>{{ item.justification }}</td></tr>{% endfor %}
   </tbody></table></div>
 </section>
+</div>
 {% endblock %}
-{% block scripts %}<script src="/static/rules.js?v=1" defer></script>{% endblock %}
+{% block scripts %}<script src="/static/rules.js?v=20261013" defer></script>{% endblock %}

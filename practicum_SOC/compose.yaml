@@ -72,6 +72,11 @@ services:
       SOC_OIDC_INTERNAL_ORIGIN: http://keycloak:8080
       SOC_OIDC_CLIENT_ID: soc-web
       SOC_OIDC_CLIENT_SECRET: ${SOC_OIDC_CLIENT_SECRET:?Actualice .env.docker con setup_docker.py}
+      SOC_AI_ENABLED: ${SOC_AI_ENABLED:-false}
+      SOC_AI_PROVIDER: ${SOC_AI_PROVIDER:-openai}
+      SOC_AI_MODEL: ${SOC_AI_MODEL:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      SOC_INVESTIGATION_IP_KEY: ${SOC_INVESTIGATION_IP_KEY:-}
     ports: ["127.0.0.1:${SOC_WEB_PORT:-8000}:8000"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=5)"]
@@ -94,6 +99,8 @@ services:
       SOC_DB_STATEMENT_TIMEOUT_SECONDS: ${SOC_DB_STATEMENT_TIMEOUT_SECONDS:-30}
       SOC_DB_RETRY_ATTEMPTS: ${SOC_DB_RETRY_ATTEMPTS:-3}
       SOC_DB_RETRY_DELAY_SECONDS: ${SOC_DB_RETRY_DELAY_SECONDS:-2}
+      SOC_INVESTIGATION_CAPTURE_IP: ${SOC_INVESTIGATION_CAPTURE_IP:-false}
+      SOC_INVESTIGATION_IP_KEY: ${SOC_INVESTIGATION_IP_KEY:-}
       SOC_INITIAL_CHECKPOINT_TIME_UTC: ${SOC_INITIAL_CHECKPOINT_TIME_UTC:-}
       SOC_INITIAL_CHECKPOINT_EVENT_ID: ${SOC_INITIAL_CHECKPOINT_EVENT_ID:-}
     volumes:
@@ -122,6 +129,22 @@ services:
         bind:
           create_host_path: false
     command: ["python", "src/container_demo.py"]
+
+  investigation-worker:
+    <<: *app
+    profiles: [investigation]
+    restart: unless-stopped
+    environment:
+      <<: *storage
+      SOC_AUTH_MODE: oidc
+      SOC_AI_ENABLED: ${SOC_AI_ENABLED:-false}
+      SOC_AI_PROVIDER: ${SOC_AI_PROVIDER:-openai}
+      SOC_AI_MODEL: ${SOC_AI_MODEL:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      SOC_INVESTIGATION_IP_KEY: ${SOC_INVESTIGATION_IP_KEY:-}
+      SOC_IP_REPUTATION_ENABLED: ${SOC_IP_REPUTATION_ENABLED:-false}
+      ABUSEIPDB_API_KEY: ${ABUSEIPDB_API_KEY:-}
+    command: ["python", "-m", "practicum_soc.cli.investigation", "--loop"]
 
   identity-db:
     image: postgres:18-bookworm

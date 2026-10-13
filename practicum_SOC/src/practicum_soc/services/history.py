@@ -4,6 +4,7 @@ from collections import Counter
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from practicum_soc.core.private_ip import capture_original_ip
 from practicum_soc.integrations.notifications import SocInboxProvider, deliver_once
 from practicum_soc.repositories.rules import RULE_FIELDS, RuleConfigStore
 from practicum_soc.services.monitoring import cooldown_for_alert, event_from_row, load_exclusions
@@ -18,13 +19,15 @@ def ingest_range(source, store, start, end, lookback, secret, normalization, pol
         source.batches(start - timedelta(minutes=lookback), end, policy["batch_size"]), 1
     ):
         items = []
+        original_ips = []
         for record in records:
             event = normalize_record(record.values, secret, normalization.minimum_year)
             rejected = rejection_reasons(event, normalization)
             reasons.update(rejected)
             stats["rejected"] += bool(rejected)
             items.append((event, record.cursor.timestamp_utc, record.cursor.event_id, not rejected))
-        inserted = store.insert_events(items, source.source_name)
+            original_ips.append(capture_original_ip(record.values, event, secret))
+        inserted = store.insert_events(items, source.source_name, original_ips=original_ips)
         stats["fetched"] += len(records)
         stats["inserted"] += inserted
         stats["duplicates"] += len(records) - inserted

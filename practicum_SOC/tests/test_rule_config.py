@@ -318,3 +318,39 @@ def test_admin_api_protects_drafts_and_csrf(monkeypatch, tmp_path):
     )
     with AlertStore(tmp_path / "api.db") as store:
         assert RuleConfigStore(store, INITIAL).current()["version_id"] == draft["parent_version_id"]
+
+
+def test_rule_editor_renders_catalog_fields_and_publication_guards(monkeypatch, tmp_path):
+    """El rediseño conserva campos, rangos y la separación entre borrador y monitor."""
+    monkeypatch.setenv("SOC_ENV", "local")
+    monkeypatch.setenv("SOC_STORAGE_BACKEND", "sqlite")
+    monkeypatch.setenv("SOC_AUTH_MODE", "disabled")
+    monkeypatch.setenv("SOC_PUBLIC_URL", "http://127.0.0.1:8000")
+    database = tmp_path / "editor.db"
+    monkeypatch.setattr(web_app.app.state, "soc_state_db", database)
+    client = TestClient(web_app.app, base_url="http://127.0.0.1:8000")
+    response = client.get("/admin/rules")
+    assert response.status_code == 200
+    assert "Prepara un ajuste controlado" in response.text
+    assert "data-rule-form=" not in response.text
+    with AlertStore(database) as store:
+        manager = RuleConfigStore(store, INITIAL)
+        active = manager.current()
+        draft = manager.create_draft(admin())
+    response = client.get(f"/admin/rules?draft_id={draft['version_id']}")
+    assert response.status_code == 200
+    html = response.text
+    assert html.count('data-rule-form="') == 5
+    assert html.count('data-rule-select="') == 6
+    assert html.count('data-rule-panel="') == 6
+    assert html.count('<fieldset class="rules-parameter-group">') == 15
+    assert "Condición de detección" in html
+    assert "Control de repetición" in html
+    assert "Puntaje y escalamiento" in html
+    assert "Aún no hay una comparación" in html
+    assert "disabled>Publicar versión</button>" in html
+    assert "disabled>Simular y comparar</button>" in html
+    assert 'name="minimum_failures" data-active-value="6"' in html
+    assert 'data-score-range="high">65–84' in html
+    with AlertStore(database) as store:
+        assert RuleConfigStore(store, INITIAL).current() == active

@@ -140,10 +140,13 @@ class AlertStore:
         cursor_event_id: str,
         is_consistent: bool,
         source_name: str = "legacy",
+        original_ip: str | None = None,
     ) -> bool:
         return (
             self.insert_events(
-                [(event, cursor_time_utc, cursor_event_id, is_consistent)], source_name
+                [(event, cursor_time_utc, cursor_event_id, is_consistent)],
+                source_name,
+                original_ips=[original_ip],
             )
             == 1
         )
@@ -152,11 +155,16 @@ class AlertStore:
         self,
         items: list[tuple[dict, str, str, bool]],
         source_name: str = "legacy",
+        *,
+        original_ips: list[str | None] | None = None,
     ) -> int:
         """Inserta un lote atómico; duplicados no suman métricas otra vez."""
         if not items:
             return 0
         values = [self._event_values(*item, source_name) for item in items]
+        from practicum_soc.repositories.investigation import encrypted_ip_rows
+
+        private_ips = encrypted_ip_rows(values, original_ips)
         with self.connection:
             cursor = self.connection.executemany(
                 """
@@ -170,7 +178,17 @@ class AlertStore:
                 """,
                 values,
             )
-        return cursor.rowcount
+            inserted = cursor.rowcount
+            if private_ips:
+                self.connection.executemany(
+                    "INSERT INTO investigation_private_ips "
+                    "(source_event_id,source_name,client_ip_key,encrypted_ip,created_at_utc) "
+                    "SELECT ?,?,?,?,? WHERE EXISTS (SELECT 1 FROM normalized_events "
+                    "WHERE source_event_id=? AND source_name=? AND client_ip_key=? "
+                    "AND is_consistent=1) ON CONFLICT (source_event_id) DO NOTHING",
+                    [(*row, row[0], row[1], row[2]) for row in private_ips],
+                )
+        return inserted
 
     def recent_consistent_events(
         self, since_utc: str, source_name: str | None = None

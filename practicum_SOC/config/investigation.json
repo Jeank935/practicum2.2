@@ -1,0 +1,21 @@
+{
+  "provider": "openai",
+  "window_before_minutes": 60,
+  "window_after_minutes": 15,
+  "maximum_events": 100,
+  "maximum_ip_entities": 5,
+  "maximum_context_bytes": 48000,
+  "maximum_response_bytes": 131072,
+  "maximum_output_tokens": 1800,
+  "ai_timeout_seconds": 30,
+  "maximum_retries": 0,
+  "reputation_timeout_seconds": 5,
+  "reuse_minutes": 60,
+  "maximum_concurrent_jobs": 1,
+  "maximum_pending_jobs": 50,
+  "lease_seconds": 180,
+  "poll_seconds": 2,
+  "send_real_ip_to_ai": false,
+  "input_usd_per_million_tokens": null,
+  "output_usd_per_million_tokens": null
+}

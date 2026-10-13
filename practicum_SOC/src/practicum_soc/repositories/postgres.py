@@ -16,7 +16,7 @@ def storage_parameters() -> dict:
     required = ("SOC_STORAGE_HOST", "SOC_STORAGE_DB", "SOC_STORAGE_USER", "SOC_STORAGE_PASSWORD")
     if any(not os.environ.get(name) for name in required):
         raise RuntimeError("Falta configurar la conexión PostgreSQL propia del SOC")
-    return {
+    parameters = {
         "host": os.environ["SOC_STORAGE_HOST"],
         "port": int(os.environ.get("SOC_STORAGE_PORT", "5432")),
         "dbname": os.environ["SOC_STORAGE_DB"],
@@ -26,6 +26,9 @@ def storage_parameters() -> dict:
         "connect_timeout": 10,
         "options": "-c timezone=UTC -c statement_timeout=30000",
     }
+    if os.environ.get("SOC_STORAGE_SSLROOTCERT"):
+        parameters["sslrootcert"] = os.environ["SOC_STORAGE_SSLROOTCERT"]
+    return parameters
 
 
 def postgres_sql(query: str) -> str:

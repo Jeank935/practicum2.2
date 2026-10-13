@@ -1,10 +1,32 @@
 # MVP SOC para autenticaciones ADFS
 
-La organización actual del backend, el mapa de archivos y las pruebas de
-rendimiento están en [la guía de refactorización](docs/backend_refactor.md).
+## Entrega al ingeniero
+
+La solución ya incluye Docker. Entregue el repositorio privado o el ZIP de fuentes,
+no una copia completa de su carpeta con datos y contraseñas.
+Consulte [entrega, instalación e imagen `.tar`](docs/engineer_handoff.md),
+[índice de documentación esencial](docs/README.md) y
+[mapa vigente del código](docs/project_guide.md).
+
+Los `.py` pequeños de `src/` son lanzadores compatibles con PowerShell y Docker;
+los `__init__.py` identifican paquetes. No son archivos vacíos prescindibles.
+El Compose actual es un piloto local: publicar en producción requiere adaptar
+dominios, HTTPS y configuración con el ingeniero, sin exponer los puertos directamente.
+
+Antes de publicar fuera del piloto local, consulte la
+[guía de preparación para producción y controles OWASP](docs/production_readiness.md).
+No se declara producción verificada sin dominio/HTTPS, revisión del entorno y pruebas de carga.
+
+La arquitectura y las mediciones del backend están en
+[la guía de refactorización](docs/backend_refactor.md).
 
 Para consultar meses completos de la fuente institucional sin mover el
 checkpoint en vivo, consulte [análisis histórico por fechas](docs/historical_analysis.md).
+
+La [investigación asistida de alertas](docs/ai_investigation.md) añade una API
+autenticada y un worker independiente. Recopila antecedentes y, únicamente
+cuando un analista lo solicita, genera una explicación en español con IA.
+Está deshabilitada por defecto; no modifica reglas, estados ni Grafana.
 
 El Sprint 6 incorpora [reglas y puntajes versionados](docs/sprint6_rules.md):
 borradores, simulación histórica, publicación auditada y restauración desde
@@ -233,7 +255,7 @@ Las pruebas utilizan datos sintéticos y mocks; no requieren conexión con la re
 ## Ubicación de las reglas de detección
 
 - `config/detection_rules.json`: habilitación, ventanas, umbrales, cooldown y puntajes.
-- `src/detect_alerts.py`: correlación y generación explicable de las alertas.
+- `src/practicum_soc/soc/detection.py`: correlación y generación explicable de las alertas.
 - `config/exclusions.json`: cuentas técnicas e IP autorizadas con umbrales elevados.
 - `docs/rules_catalog.md`: descripción funcional para operación y defensa del proyecto.
 
@@ -243,7 +265,7 @@ solo; sirve como contexto para revisar el comportamiento antes de clasificar una
 Documentación adicional:
 
 - `docs/project_guide.md` — función de cada archivo y tecnologías.
-- `docs/architecture.md`
+- `docs/backend_refactor.md` — arquitectura y mapa vigente.
 - `docs/rules_catalog.md`
 - `docs/operations.md`
 - `docs/security.md`
